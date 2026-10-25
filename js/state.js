@@ -2,7 +2,7 @@
 (function (SW) {
   const U = SW.U;
   SW.SAVE_KEY = 'shannons-world-save-v1';
-  SW.VERSION = 1;
+  SW.VERSION = 2; // v2: first-person 3D city at 1 m per tile
 
   const BASE_REL = {
     mira: { friend: 55, trust: 50, attract: 8, comfort: 50, tension: 5 },

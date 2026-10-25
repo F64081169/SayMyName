@@ -34,6 +34,8 @@
   UI.say = function (who, text, emo) {
     if (typeof who === 'string' && who.includes('|')) { const [w, e] = who.split('|'); who = w; emo = e; }
     $('dialog').hidden = false; $('dlg-choices').innerHTML = ''; $('dlg-next').hidden = false;
+    if (SW.IN) SW.IN.release();
+    if (SW.R3) SW.R3.focus(who);
     face(who, emo);
     const nm = who === 'narr' ? '' : who === 'me' ? SW.S.p.name : SW.name(who);
     $('dlg-name').textContent = nm; $('dlg-name').hidden = !nm;
@@ -60,7 +62,7 @@
       UI._choiceRes = (i) => { const o = opts[i]; if (!o || o.dis) return; box.innerHTML = ''; UI._choiceRes = null; res(o.v !== undefined ? o.v : i); };
     });
   };
-  UI.closeDialog = () => { $('dialog').hidden = true; $('dlg-choices').innerHTML = ''; advance = null; };
+  UI.closeDialog = () => { $('dialog').hidden = true; $('dlg-choices').innerHTML = ''; advance = null; if (SW.R3) SW.R3.focus(null); };
   UI.dialogTap = function () {
     if (finishTyping()) return;
     if (advance) { const a = advance; advance = null; a(); }
@@ -81,6 +83,7 @@
         box.appendChild(b);
       });
       $('sheet').hidden = false;
+      if (SW.IN) SW.IN.release();
     });
   };
   UI.closeSheet = function (cancel) { $('sheet').hidden = true; if (cancel && sheetRes) { const r = sheetRes; sheetRes = null; r(null); } sheetRes = null; };
@@ -106,7 +109,7 @@
         el.onclick = () => { $('card').hidden = true; res(b.v); };
         act.appendChild(el);
       });
-      $('card').hidden = false; body.scrollTop = 0;
+      $('card').hidden = false; body.scrollTop = 0; if (SW.IN) SW.IN.release();
     });
   };
 

@@ -3,10 +3,10 @@
   const U = SW.U, T = SW.T;
   const W = SW.W = { maps: {}, cam: { x: 0, y: 0 }, ts: 48, paths: {}, cache: {}, anim: 0, dpr: 1, vw: 0, vh: 0, marker: null, target: null, doorLock: null };
   const SOLID = { '#': 1, B: 1, T: 1, w: 1 };
-  const NPC_SPEED = 3.4; // tiles per game minute
-  const PLAYER_SPEED = 4.4; // tiles per real second
+  const NPC_SPEED = 2.8; // metres per game minute (1 tile = 1 m)
+  const PLAYER_SPEED = 4.2; // metres per real second outdoors; slower indoors
 
-  W.reset = function () { W.maps = {}; W.cache = {}; W.paths = {}; };
+  W.reset = function () { W.maps = {}; W.paths = {}; if (SW.R3) SW.R3.reset(); };
 
   W.get = function (id) {
     if (W.maps[id]) return W.maps[id];
@@ -42,13 +42,13 @@
     }
     if (sx === tx && sy === ty) return [];
     const N = m.w * m.h, prev = new Int32Array(N).fill(-1), start = sy * m.w + sx, goal = ty * m.w + tx;
-    const q = [start]; prev[start] = start;
-    while (q.length) {
-      const cur = q.shift(); if (cur === goal) break;
+    const q = new Int32Array(N); let qh = 0, qt = 0; q[qt++] = start; prev[start] = start;
+    while (qh < qt) {
+      const cur = q[qh++]; if (cur === goal) break;
       const cx = cur % m.w, cy = (cur / m.w) | 0;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const nx = cx + dx, ny = cy + dy; if (W.solidAt(m, nx, ny)) continue;
-        const ni = ny * m.w + nx; if (prev[ni] !== -1) continue; prev[ni] = cur; q.push(ni);
+        const ni = ny * m.w + nx; if (prev[ni] !== -1) continue; prev[ni] = cur; q[qt++] = ni;
       }
     }
     if (prev[goal] === -1) return null;
@@ -69,6 +69,8 @@
   W.enter = function (mapId, x, y, dir) {
     const S = SW.S, p = S.p, from = p.map;
     p.map = mapId; p.x = x; p.y = y; p.dir = dir || 'down';
+    p.yaw = { up: 0, down: Math.PI, left: Math.PI / 2, right: -Math.PI / 2 }[p.dir];
+    if (SW.R3) { SW.R3.pitch = -0.05; SW.R3.enter(mapId); }
     W.doorLock = [Math.floor(x), Math.floor(y)];
     W.marker = null; W.autoPath = null;
     if (p.follower && S.n[p.follower]) {
@@ -116,7 +118,7 @@
     const len = Math.hypot(vx, vy); if (len < 0.01) { p.moving = false; return; }
     if (len > 1) { vx /= len; vy /= len; }
     const tired = p.energy < 12 ? 0.65 : 1;
-    const sp = PLAYER_SPEED * tired * dt;
+    const sp = PLAYER_SPEED * (m.def.outdoor ? 1 : 0.72) * tired * dt;
     const nx = p.x + vx * sp, ny = p.y + vy * sp;
     if (!blocked(m, nx, p.y)) p.x = nx;
     if (!blocked(m, p.x, ny)) p.y = ny;
@@ -144,6 +146,7 @@
     const dx = tx + 0.5 - p.x, dy = ty + 0.5 - p.y, d = Math.hypot(dx, dy);
     if (d < 0.12) { ap.i++; return true; }
     const mapBefore = p.map;
+    const tyaw = Math.atan2(-dx, -dy); let dyaw = tyaw - p.yaw; while (dyaw > Math.PI) dyaw -= Math.PI * 2; while (dyaw < -Math.PI) dyaw += Math.PI * 2; p.yaw += dyaw * Math.min(1, dt * 6);
     W.movePlayer(dx / d, dy / d, Math.min(dt, d / PLAYER_SPEED + 0.001));
     if (p.map !== mapBefore) { W.autoPath = null; }
     return true;
@@ -253,6 +256,7 @@
 
   // ---------- interaction target ----------
   W.nearest = function () {
+    if (SW.R3 && SW.R3.camera) return SW.R3.computeTarget();
     const S = SW.S, p = S.p, m = W.get(p.map);
     let best = null, bd = 1.55;
     for (const id of W.npcsHere()) {
@@ -268,134 +272,11 @@
     return best;
   };
 
-  W.pick = function (wx, wy) {
-    const S = SW.S, m = W.get(S.p.map);
-    for (const id of W.npcsHere()) { const n = S.n[id]; if (Math.abs(n.x - wx) < 0.55 && wy > n.y - 1.1 && wy < n.y + 0.5) return { type: 'npc', id }; }
-    for (const o of m.objects) { if (o.kind === 'decor') continue; if (wx >= o.x && wx < o.x + o.w && wy >= o.y && wy < o.y + o.h) return { type: 'obj', obj: o }; }
-    return null;
-  };
 
-  // ---------- rendering ----------
-  W.resize = function (canvas) {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const vw = window.innerWidth, vh = window.innerHeight;
-    W.dpr = dpr; W.vw = vw; W.vh = vh;
-    canvas.width = Math.round(vw * dpr); canvas.height = Math.round(vh * dpr);
-    const ts = Math.round(U.clamp(Math.min(vw, vh) / 9.2, 36, 58));
-    if (ts !== W.ts) { W.ts = ts; W.cache = {}; }
-  };
 
+  // ---------- 2D helpers (avatar previews) ----------
   function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
   W.rr = rr;
-
-  function renderStatic(m) {
-    const ts = W.ts * W.dpr;
-    const c = document.createElement('canvas'); c.width = m.w * ts; c.height = m.h * ts;
-    const g = c.getContext('2d');
-    const def = m.def;
-    if (def.outdoor) drawCity(g, m, ts); else drawInterior(g, m, ts);
-    // objects
-    for (const o of m.objects) {
-      if (o.inBuilding) continue;
-      const x = o.x * ts, y = o.y * ts, w = o.w * ts, h = o.h * ts;
-      g.fillStyle = 'rgba(0,0,0,0.18)'; rr(g, x + ts * 0.08, y + ts * 0.14, w - ts * 0.1, h - ts * 0.06, ts * 0.16); g.fill();
-      g.fillStyle = o.color || '#999'; rr(g, x + ts * 0.06, y + ts * 0.04, w - ts * 0.12, h - ts * 0.12, ts * 0.16); g.fill();
-      g.fillStyle = 'rgba(255,255,255,0.18)'; rr(g, x + ts * 0.1, y + ts * 0.07, w - ts * 0.2, ts * 0.16, ts * 0.08); g.fill();
-      if (o.icon) {
-        g.font = `${Math.round(ts * 0.52)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
-        g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText(o.icon, x + w / 2, y + h / 2 - ts * 0.02);
-      }
-    }
-    return c;
-  }
-
-  function drawInterior(g, m, ts) {
-    const def = m.def;
-    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
-      const ch = m.rows[y][x];
-      if (ch === '#') continue;
-      g.fillStyle = def.floor[(x + y) % 2]; g.fillRect(x * ts, y * ts, ts + 1, ts + 1);
-    }
-    for (const r of def.rooms || []) {
-      g.fillStyle = r.floor; g.globalAlpha = 0.9; g.fillRect(r.x * ts, r.y * ts, r.w * ts, r.h * ts); g.globalAlpha = 1;
-      g.fillStyle = 'rgba(0,0,0,0.05)';
-      for (let yy = r.y; yy < r.y + r.h; yy++) for (let xx = r.x; xx < r.x + r.w; xx++) if ((xx + yy) % 2) g.fillRect(xx * ts, yy * ts, ts, ts);
-    }
-    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
-      const ch = m.rows[y][x];
-      if (ch === '#') {
-        g.fillStyle = def.wall; g.fillRect(x * ts, y * ts, ts + 1, ts + 1);
-        if (y + 1 < m.h && m.rows[y + 1][x] !== '#') { g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(x * ts, y * ts + ts * 0.7, ts + 1, ts * 0.3); }
-      } else if (ch === 'D') {
-        g.fillStyle = '#e9d9a6'; g.fillRect(x * ts + ts * 0.1, y * ts, ts * 0.8, ts);
-        g.fillStyle = '#3b2f24'; g.font = `${Math.round(ts * 0.34)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('出口', x * ts + ts / 2, y * ts + ts / 2);
-      }
-    }
-    g.font = `600 ${Math.round(ts * 0.3)}px ${getComputedStyle(document.body).fontFamily}`;
-    g.fillStyle = 'rgba(31,45,54,0.35)'; g.textAlign = 'left'; g.textBaseline = 'top';
-    for (const r of def.rooms || []) g.fillText(r.label, r.x * ts + ts * 0.15, (r.y + r.h) * ts - ts * 0.42);
-  }
-
-  function drawCity(g, m, ts) {
-    const col = { g: ['#8fbf76', '#89b970'], k: ['#9ccc80', '#96c67a'], s: ['#d9d4c8', '#d2cdc0'], r: ['#5d646b', '#5a6168'], p: ['#d8c9a3', '#d2c39c'], P: ['#cfc8b8', '#c9c2b2'], f: ['#8fbf76', '#8fbf76'], w: ['#4f97c4', '#4b92bf'], T: ['#8fbf76', '#89b970'], D: ['#cfc8b8', '#cfc8b8'], B: ['#8fbf76', '#89b970'] };
-    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
-      const ch = m.rows[y][x]; const c = col[ch] || col.g;
-      g.fillStyle = c[(x + y) % 2]; g.fillRect(x * ts, y * ts, ts + 1, ts + 1);
-      if (ch === 'f') { for (let i = 0; i < 5; i++) { g.fillStyle = ['#f2b33d', '#e46b7b', '#fff'][i % 3]; g.beginPath(); g.arc(x * ts + ts * (0.2 + 0.15 * i), y * ts + ts * (0.3 + 0.4 * U.hash(x + ',' + y + i)), ts * 0.07, 0, 7); g.fill(); } }
-      if (ch === 'w') { g.strokeStyle = 'rgba(255,255,255,0.25)'; g.lineWidth = ts * 0.04; g.beginPath(); g.moveTo(x * ts + ts * 0.2, y * ts + ts * 0.5); g.quadraticCurveTo(x * ts + ts * 0.5, y * ts + ts * 0.35, x * ts + ts * 0.8, y * ts + ts * 0.5); g.stroke(); }
-    }
-    // road markings
-    g.fillStyle = 'rgba(255,255,255,0.75)';
-    for (let x = 0; x < m.w; x += 2) { if (x === 22) continue; g.fillRect(x * ts + ts * 0.2, 17 * ts - ts * 0.04, ts * 0.6, ts * 0.08); g.fillRect(x * ts + ts * 0.2, 28 * ts - ts * 0.04, ts * 0.6, ts * 0.08); }
-    for (let y = 0; y < 34; y += 2) { if (y === 16 || y === 27) continue; g.fillRect(23 * ts - ts * 0.04, y * ts + ts * 0.2, ts * 0.08, ts * 0.6); }
-    // crosswalks
-    g.fillStyle = 'rgba(255,255,255,0.6)';
-    for (const [cx, cy] of [[22, 16], [22, 27]]) for (let i = 0; i < 4; i++) { g.fillRect((cx - 1) * ts + ts * 0.15, cy * ts + i * ts * 0.5 + ts * 0.05, ts * 0.7, ts * 0.25); g.fillRect((cx + 2) * ts + ts * 0.15, cy * ts + i * ts * 0.5 + ts * 0.05, ts * 0.7, ts * 0.25); }
-    // trees
-    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (m.rows[y][x] === 'T') {
-      g.fillStyle = 'rgba(0,0,0,0.18)'; g.beginPath(); g.ellipse(x * ts + ts * 0.55, y * ts + ts * 0.8, ts * 0.4, ts * 0.16, 0, 0, 7); g.fill();
-      g.fillStyle = '#7a5a3a'; g.fillRect(x * ts + ts * 0.44, y * ts + ts * 0.5, ts * 0.12, ts * 0.32);
-      g.fillStyle = U.hash(x + 't' + y) > 0.5 ? '#4f8f4a' : '#5c9a52'; g.beginPath(); g.arc(x * ts + ts * 0.5, y * ts + ts * 0.38, ts * 0.38, 0, 7); g.fill();
-      g.fillStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.arc(x * ts + ts * 0.38, y * ts + ts * 0.26, ts * 0.14, 0, 7); g.fill();
-    }
-    // buildings
-    const font = getComputedStyle(document.body).fontFamily;
-    for (const b of SW.BUILDINGS) {
-      const x = b.x * ts, y = b.y * ts, w = b.w * ts, h = b.h * ts;
-      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x + ts * 0.15, y + ts * 0.2, w, h);
-      g.fillStyle = b.body; g.fillRect(x, y, w, h);
-      g.fillStyle = b.roof; g.fillRect(x, y, w, h * 0.38);
-      g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(x, y, w, ts * 0.18);
-      if (b.tiles) { g.fillStyle = 'rgba(255,255,255,0.25)'; for (let yy = y + h * 0.4; yy < y + h - ts; yy += ts * 0.25) g.fillRect(x, yy, w, 1); }
-      // windows
-      g.fillStyle = 'rgba(70,110,140,0.55)';
-      for (let yy = b.y + Math.ceil(b.h * 0.42); yy < b.y + b.h - 1; yy++) for (let xx = b.x; xx < b.x + b.w; xx++) {
-        if ((xx - b.x) % 2 === 1 || xx === b.door[0]) continue; g.fillRect(xx * ts + ts * 0.2, yy * ts + ts * 0.2, ts * 0.6, ts * 0.5);
-      }
-      if (b.steeple) { g.fillStyle = '#5b5170'; g.beginPath(); g.moveTo(x + w / 2 - ts * 0.6, y); g.lineTo(x + w / 2, y - ts * 1.3); g.lineTo(x + w / 2 + ts * 0.6, y); g.fill(); g.fillStyle = '#f2e7c9'; g.fillRect(x + w / 2 - ts * 0.04, y - ts * 1.25, ts * 0.08, ts * 0.45); g.fillRect(x + w / 2 - ts * 0.18, y - ts * 1.12, ts * 0.36, ts * 0.08); }
-      // sign
-      const fs = Math.round(ts * 0.42); g.font = `700 ${fs}px ${font}`; const tw = g.measureText(b.sign).width + ts * 0.5;
-      const sx = x + w / 2 - tw / 2, sy = y + h * 0.38 - fs * 0.7;
-      g.fillStyle = b.signColor; rr(g, sx, sy, tw, fs * 1.45, ts * 0.12); g.fill();
-      g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(b.sign, x + w / 2, sy + fs * 0.74);
-      // door
-      const dx = b.door[0] * ts, dy = b.door[1] * ts;
-      g.fillStyle = b.shop ? '#bfe7df' : '#3b2f24'; g.fillRect(dx + ts * 0.12, dy + ts * 0.1, ts * 0.76, ts * 0.9);
-      g.fillStyle = b.shop ? '#2f8f83' : '#f2b33d'; g.fillRect(dx + ts * 0.12, dy + ts * 0.1, ts * 0.76, ts * 0.12);
-      if (b.shop) { g.fillStyle = '#2f8f83'; g.fillRect(x, y + h * 0.38, w, ts * 0.14); g.fillStyle = '#f2b33d'; g.fillRect(x, y + h * 0.38 + ts * 0.14, w, ts * 0.08); }
-    }
-    // lamps
-    for (const [lx, ly] of W.lamps()) { g.fillStyle = '#3d454c'; g.fillRect(lx * ts + ts * 0.45, ly * ts + ts * 0.15, ts * 0.1, ts * 0.7); g.fillStyle = '#f5e3a1'; g.beginPath(); g.arc(lx * ts + ts * 0.5, ly * ts + ts * 0.15, ts * 0.12, 0, 7); g.fill(); }
-  }
-  W.lamps = function () {
-    if (W._lamps) return W._lamps;
-    const out = [];
-    for (let x = 3; x < 46; x += 6) { out.push([x, 15]); out.push([x, 26]); }
-    for (let x = 6; x < 46; x += 8) out.push([x, 34]);
-    W._lamps = out.filter(([x, y]) => x !== 21 && x !== 24); return W._lamps;
-  };
-
   // ---------- characters ----------
   W.drawChar = function (g, cx, cy, s, look, opt) {
     opt = opt || {};
@@ -438,73 +319,4 @@
     }
   };
 
-  W.render = function (ctx) {
-    const S = SW.S, p = S.p, m = W.get(p.map), ts = W.ts, dpr = W.dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = m.def.outdoor ? '#3d4a3a' : '#1f2d36'; ctx.fillRect(0, 0, W.vw, W.vh);
-    const vwT = W.vw / ts, vhT = W.vh / ts;
-    let cx = p.x - vwT / 2, cy = p.y - vhT / 2;
-    if (m.w <= vwT) cx = (m.w - vwT) / 2; else cx = U.clamp(cx, 0, m.w - vwT);
-    if (m.h <= vhT - 1.5) cy = (m.h - vhT) / 2 - 0.4; else cy = U.clamp(cy, -1.4, m.h - vhT + 1.6);
-    W.cam.x = cx; W.cam.y = cy;
-    let st = W.cache[m.id];
-    if (!st) st = W.cache[m.id] = renderStatic(m);
-    ctx.drawImage(st, -cx * ts, -cy * ts, m.w * ts, m.h * ts);
-
-    const target = W.target;
-    if (target && !SW.UI.busy()) {
-      ctx.strokeStyle = 'rgba(242,179,61,' + (0.6 + 0.4 * Math.sin(W.anim * 6)) + ')'; ctx.lineWidth = 3;
-      if (target.type === 'obj') { const o = target.obj; rr(ctx, (o.x - cx) * ts + 2, (o.y - cy) * ts + 2, o.w * ts - 4, o.h * ts - 4, ts * 0.18); ctx.stroke(); }
-    }
-    if (W.marker) { const mk = W.marker; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse((mk.x - cx) * ts, (mk.y - cy) * ts + ts * 0.25, ts * 0.25 + Math.sin(W.anim * 8) * 2, ts * 0.1, 0, 0, 7); ctx.stroke(); }
-
-    // characters sorted by y
-    const list = [];
-    for (const id of W.npcsHere()) list.push({ id, n: S.n[id] });
-    list.push({ id: 'me', n: p });
-    list.sort((a, b) => a.n.y - b.n.y);
-    const font = '600 ' + Math.round(ts * 0.27) + 'px ' + getComputedStyle(document.body).fontFamily;
-    for (const it of list) {
-      const n = it.n, sx = (n.x - cx) * ts, sy = (n.y - cy) * ts - ts * 0.12;
-      const look = it.id === 'me' ? p.look : SW.CH[it.id].look;
-      const bob = n.moving ? Math.sin(W.anim * 14 + (it.id.length)) * ts * 0.03 : 0;
-      W.drawChar(ctx, sx, sy, ts * 1.05, look, { dir: n.dir || 'down', bob, moving: n.moving });
-      if (target && target.type === 'npc' && target.id === it.id && !SW.UI.busy()) { ctx.strokeStyle = 'rgba(242,179,61,0.9)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(sx, sy + ts * 0.42, ts * 0.38, ts * 0.13, 0, 0, 7); ctx.stroke(); }
-      // name tag
-      ctx.font = font; const label = it.id === 'me' ? p.name : SW.CH[it.id].name;
-      const tw = ctx.measureText(label).width + 10, ty = sy - ts * 0.78;
-      ctx.fillStyle = it.id === 'me' ? 'rgba(242,179,61,0.92)' : 'rgba(31,45,54,0.72)'; rr(ctx, sx - tw / 2, ty - ts * 0.17, tw, ts * 0.34, ts * 0.17); ctx.fill();
-      ctx.fillStyle = it.id === 'me' ? '#1f2d36' : '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, sx, ty + 1);
-      if (it.id !== 'me') {
-        const bub = SW.Sys.bubble(it.id);
-        if (bub) {
-          const by = ty - ts * 0.42 + Math.sin(W.anim * 4) * 2;
-          ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sx, by, ts * 0.24, 0, 7); ctx.fill();
-          ctx.font = `${Math.round(ts * 0.3)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.fillText(bub, sx, by + 1);
-        }
-      }
-    }
-
-    // lighting
-    const dark = T.dark();
-    if (m.def.outdoor && dark > 0.01) {
-      ctx.fillStyle = `rgba(14,22,48,${dark})`; ctx.fillRect(0, 0, W.vw, W.vh);
-      ctx.globalCompositeOperation = 'lighter';
-      for (const [lx, ly] of W.lamps()) {
-        const x = (lx + 0.5 - cx) * ts, y = (ly + 0.3 - cy) * ts; if (x < -ts * 3 || y < -ts * 3 || x > W.vw + ts * 3 || y > W.vh + ts * 3) continue;
-        const gr = ctx.createRadialGradient(x, y, 0, x, y, ts * 2.4); gr.addColorStop(0, `rgba(255,214,140,${0.45 * dark / 0.55})`); gr.addColorStop(1, 'rgba(255,214,140,0)');
-        ctx.fillStyle = gr; ctx.fillRect(x - ts * 2.4, y - ts * 2.4, ts * 4.8, ts * 4.8);
-      }
-      for (const b of SW.BUILDINGS) {
-        const x = (b.door[0] + 0.5 - cx) * ts, y = (b.door[1] + 0.8 - cy) * ts;
-        const gr = ctx.createRadialGradient(x, y, 0, x, y, ts * 1.6); gr.addColorStop(0, `rgba(255,200,120,${0.4 * dark / 0.55})`); gr.addColorStop(1, 'rgba(255,200,120,0)');
-        ctx.fillStyle = gr; ctx.fillRect(x - ts * 1.6, y - ts * 1.6, ts * 3.2, ts * 3.2);
-      }
-      ctx.globalCompositeOperation = 'source-over';
-    } else if (!m.def.outdoor && dark > 0.3) {
-      ctx.fillStyle = `rgba(30,24,10,${(dark - 0.3) * 0.25})`; ctx.fillRect(0, 0, W.vw, W.vh);
-    }
-  };
-
-  W.screenToWorld = (sx, sy) => ({ x: sx / W.ts + W.cam.x, y: sy / W.ts + W.cam.y });
 })(window.SW);

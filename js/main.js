@@ -97,7 +97,10 @@
       S.p.map = 'home'; S.p.x = x + 0.5; S.p.y = y + 0.5; S.p.dir = 'down';
     }
     W.updateNPCs(0, true);
-    W.resize($('game'));
+    if (S.p.yaw === undefined) S.p.yaw = { up: 0, down: Math.PI, left: Math.PI / 2, right: -Math.PI / 2 }[S.p.dir] || 0;
+    SW.R3.resize();
+    SW.R3.enter(S.p.map);
+    $('minimap').hidden = false; $('crosshair').hidden = false;
     SW.save(true);
     if (!Main.loopOn) { Main.loopOn = true; requestAnimationFrame(loop); }
     setTimeout(async () => { await SW.Dir.episodeCard(); SW.Dir.tick(); }, 200);
@@ -108,7 +111,6 @@
     const dt = Math.min(0.1, last ? (ts - last) / 1000 : 0.016); last = ts;
     const S = SW.S;
     if (S && $('title').hidden) {
-      W.anim += dt;
       const busy = UI.busy();
       if (!busy && !document.hidden) {
         const gm = dt * SW.timeScale; // 1 real second = 1 game minute
@@ -116,7 +118,13 @@
         S.t += gm;
         if (T.day() !== before) Sys.dayStart();
         Sys.tick(gm, false);
-        if (!W.followPath(dt)) { const v = SW.IN.moveVec(); if (v.x || v.y) { W.autoPath = null; W.marker = null; } W.movePlayer(v.x, v.y, dt); }
+        if (!W.followPath(dt)) {
+          const v = SW.IN.moveVec(), yaw = S.p.yaw || 0;
+          if (v.x || v.y) { W.autoPath = null; W.marker = null; }
+          const f = -v.y, s = v.x;
+          W.movePlayer(-Math.sin(yaw) * f + Math.cos(yaw) * s, -Math.cos(yaw) * f - Math.sin(yaw) * s, dt);
+        }
+        S.p.yaw = (S.p.yaw || 0) + SW.IN.turn() * dt * 2.2;
         dirT -= dt; if (dirT <= 0) { dirT = 0.5; SW.Dir.tick(); }
         exT -= dt; if (exT <= 0) { exT = 2; Sys.checkExhaust(); }
       } else {
@@ -124,7 +132,7 @@
         W.updateNPCs(0, false);
       }
       W.target = busy ? null : W.nearest();
-      W.render($('game').getContext('2d'));
+      SW.R3.render(dt);
       UI.hud(dt);
     }
     requestAnimationFrame(loop);
@@ -139,13 +147,13 @@
     where: () => Object.fromEntries(Object.keys(SW.S.n).map((id) => [id, `${SW.S.n[id].map} ${SW.S.n[id].act}`])),
   };
 
-  window.addEventListener('resize', () => { W.resize($('game')); });
+  window.addEventListener('resize', () => { SW.R3.resize(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) SW.save(); });
   window.addEventListener('pagehide', () => SW.save());
 
   window.addEventListener('DOMContentLoaded', () => {
+    SW.R3.init($('game'));
     SW.IN.init();
-    W.resize($('game'));
     Main.title();
   });
 })(window.SW);

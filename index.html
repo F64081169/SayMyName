@@ -26,6 +26,8 @@
   </div>
 
   <div id="objective" hidden></div>
+  <canvas id="minimap" width="240" height="240" hidden aria-label="小地圖"></canvas>
+  <div id="crosshair" hidden></div>
   <div id="toasts"></div>
   <div id="stick" hidden><div id="stick-knob"></div></div>
   <button id="btn-act" hidden><span id="act-label">互動</span><kbd>E</kbd></button>
@@ -61,11 +63,15 @@
   <div id="title" hidden></div>
 </div>
 
+<script src="vendor/three.min.js"></script>
 <script src="js/util.js"></script>
 <script src="js/data/chars.js"></script>
 <script src="js/data/maps.js"></script>
 <script src="js/state.js"></script>
 <script src="js/world.js"></script>
+<script src="js/r3/tex.js"></script>
+<script src="js/r3/models.js"></script>
+<script src="js/r3/render3d.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/sys.js"></script>
 <script src="js/acts.js"></script>

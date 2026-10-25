@@ -167,18 +167,34 @@
       <button class="row-btn" data-a="dating"><span class="av" style="background:#e46b7b">💘</span><span class="meta"><b>Swipe 緣</b><span>交友軟體</span></span></button>
       <button class="row-btn" data-a="invest"><span class="av" style="background:#6fb7de">📈</span><span class="meta"><b>小資投</b><span>竹科指數 ETF</span></span></button>
       <button class="row-btn" data-a="bag"><span class="av" style="background:#f2b33d">🎒</span><span class="meta"><b>包包</b><span>你的物品</span></span></button>
+      <button class="row-btn" data-a="cats"><span class="av" style="background:#e39a4a">🐈</span><span class="meta"><b>街貓圖鑑</b><span>${Object.keys(SW.S.f.cats || {}).length}／8 隻</span></span></button>
       <button class="row-btn" data-a="settings"><span class="av" style="background:#5d6e78">⚙️</span><span class="meta"><b>設定</b><span>存檔、重新開始</span></span></button>
       <button class="row-btn" data-a="help"><span class="av" style="background:#22323b">❓</span><span class="meta"><b>操作說明</b><span>怎麼玩</span></span></button>
     </div>`;
     main(html, 'App');
     $('phone-main').querySelectorAll('[data-a]').forEach((b) => { b.onclick = () => Phone.go(b.dataset.a); });
   };
+  Phone.views.cats = function () {
+    const st = S(), got = st.f.cats || {};
+    const html = `<p class="muted">新竹街頭住著八隻貓。牠們有自己的地盤，靠近一點、慢慢蹲下來。</p><div class="grid2">${Object.entries(SW.CATS).map(([id, name]) => `<div class="prof" style="padding:10px"><div class="big" style="font-size:34px">${got[id] ? '🐈' : '❔'}</div><b>${got[id] ? U.esc(name) : '？？？'}</b><div class="muted">${got[id] ? '第 ' + got[id] + ' 天遇見' : '還沒遇到'}</div></div>`).join('')}</div>`;
+    main(html, '街貓圖鑑', () => Phone.go('more'));
+  };
   Phone.views.map = function () {
     const st = S();
     const here = st.p.map;
     const places = ['office', 'home', 'cafe', 'church', 'gym', 'bar', 'studio', 'city'];
-    const html = `<p class="muted">你現在在：<b>${U.esc(SW.PLACES[here].name)}</b>。用走的可以看到路上的人；用地圖前往比較快，但也會花時間。</p><div class="list">${places.map((k) => `<button class="row-btn" data-g="${k}" ${k === here ? 'disabled' : ''}><span class="av" style="background:#e6ede8">${SW.PLACES[k].icon}</span><span class="meta"><b>${U.esc(SW.PLACES[k].name)}</b><span>${U.esc(SW.PLACES[k].desc)}</span></span></button>`).join('')}</div>`;
+    const html = `<div style="position:relative;border-radius:14px;overflow:hidden;background:#1f2d36"><canvas id="ph-map" style="width:100%;display:block"></canvas></div><p class="muted">你現在在：<b>${U.esc(SW.PLACES[here].name)}</b>。用走的可以看到路上的人；用地圖前往比較快，但也會花時間。</p><div class="list">${places.map((k) => `<button class="row-btn" data-g="${k}" ${k === here ? 'disabled' : ''}><span class="av" style="background:#e6ede8">${SW.PLACES[k].icon}</span><span class="meta"><b>${U.esc(SW.PLACES[k].name)}</b><span>${U.esc(SW.PLACES[k].desc)}</span></span></button>`).join('')}</div>`;
     main(html, '地圖', () => Phone.go('more'));
+    if (SW.R3) {
+      const base = SW.R3.mapCanvas('city'), cv = $('ph-map'), g = cv.getContext('2d');
+      cv.width = base.c.width; cv.height = base.c.height; g.drawImage(base.c, 0, 0);
+      const P = base.P; g.font = `700 ${P * 2.6}px ${SW.TX.FONT}`; g.textAlign = 'center'; g.lineWidth = P * 0.8; g.strokeStyle = 'rgba(20,28,34,0.85)'; g.fillStyle = '#fff';
+      const lab = (t, x, y) => { g.strokeText(t, x * P, y * P); g.fillText(t, x * P, y * P); };
+      for (const b of SW.BUILDINGS) lab(b.map ? SW.PLACES[b.map].name.replace('（你家）', '') : b.sign, b.x + b.w / 2, b.y + b.h / 2 + 3);
+      lab('東門夜市', 92, 66); lab('籃球場', 46, 22); lab('頭前溪河濱公園', 60, 90); lab('光復路', 30, 48.8); lab('中央路', 61, 30);
+      const pos = here === 'city' ? [st.p.x, st.p.y] : (() => { const b = SW.W.building(here); return b ? [b.door[0] + 0.5, b.door[1] + 1] : [60, 50]; })();
+      g.fillStyle = '#f2b33d'; g.beginPath(); g.arc(pos[0] * P, pos[1] * P, P * 2.2, 0, 7); g.fill(); g.strokeStyle = '#1f2d36'; g.lineWidth = P * 0.6; g.stroke();
+    }
     $('phone-main').querySelectorAll('[data-g]').forEach((b) => { b.onclick = async () => { const k = b.dataset.g; if (k !== 'city' && !Sys.canEnter(k)) return; Phone.close(); const mins = here === 'city' || k === 'city' ? 8 : 12; if (!(await Sys.confirmTime(mins, '移動'))) return; await Sys.advance(mins, '🚶 移動中……'); SW.W.travelTo(k); }; });
   };
   Phone.views.bag = function () {

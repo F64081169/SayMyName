@@ -474,3 +474,157 @@
   }).then((ok) => ok && Sys.mood(6)) }];
   OBJ.busStop = () => [{ icon: '🚌', t: '小旅行：南寮漁港', sub: T.weekend() && T.in('08:00', '15:30') ? '約 5 小時・週末限定' : '只有週末 08:00-15:30 有車', v: 'trip', dis: !(T.weekend() && T.in('08:00', '15:30')), run: () => SW.Dir.runById('trip') }];
 })(window.SW);
+
+// ===== CITY LIFE: night market, shrine, court, street cats =====
+(function (SW) {
+  const U = SW.U, T = SW.T, UI = SW.UI, Sys = SW.Sys;
+  const S = () => SW.S;
+  const nm = (id) => SW.name(id);
+  const say = (w, t, e) => UI.say(w, t, e);
+  const narr = (t) => UI.say('narr', t);
+  const choose = (o, p) => UI.choose(o, p);
+  const OBJ = SW.OBJ, SUB = SW.OBJ_SUB;
+  const fol = () => S().p.follower;
+  const marketOpen = () => T.mod() >= 17 * 60 || T.mod() < 30;
+  const buy = (price) => { if (S().p.money < price) { UI.toast('錢不夠。'); return false; } Sys.money(-price); return true; };
+  async function folLine(lines) { const f = fol(); if (f && lines[f]) { await say(f, lines[f]); Sys.ch(f, { comfort: 2 }, true); } }
+
+  OBJ.breakfast = () => {
+    const open = T.in('06:00', '12:30');
+    if (!open) return [{ icon: '🔒', t: '鐵捲門拉下來了', sub: '早餐店只開到中午', v: 'x', dis: true }];
+    return [
+      { icon: '🥪', t: '蛋餅＋大冰奶', sub: 'NT$75・+體力', v: 'a', run: async () => { if (!buy(75)) return; Sys.energy(20); Sys.mood(3); await SW.scene(async () => { await say('narr', '老闆娘：「帥哥美女，老樣子喔！蛋餅要不要加起司？」'); const c = await choose([{ t: '「加！」', v: 1 }, { t: '「今天想吃清淡一點。」', v: 0 }]); await narr(c ? '起司蛋餅的香氣讓你原諒了星期一。' : '老闆娘：「年輕人要吃多一點啦！」她還是偷偷多放了一片火腿。'); await folLine({ lele: '我要跟你一樣的！再加一份薯餅！', anson: '我平常只喝黑咖啡……今天就吃一份吧。', mira: '大冰奶是 QA 的燃料。' }); }); } },
+      { icon: '🍝', t: '鐵板麵加蛋', sub: 'NT$85・+體力', v: 'b', run: async () => { if (!buy(85)) return; Sys.energy(26); UI.toast('🍝 黑胡椒醬淋在鐵板上，滋滋作響。'); } },
+      { icon: '👂', t: '跟老闆娘聊兩句', sub: '早餐店什麼都知道', v: 'c', run: () => SW.scene(async () => { const st = S(); const lines = []; if (st.n.anson.energy < 45) lines.push('老闆娘：「那個戴眼鏡的老師，最近每天早上只買一杯黑咖啡就跑了，都沒吃早餐。你們是朋友吧？叫他吃飯啦。」'); if (st.cafe.outcome === null && T.day() <= 7) lines.push('老闆娘：「轉角那間咖啡廳的妹妹，最近來買早餐都在嘆氣。是不是房租的問題？這條街很多人都被漲了。」'); lines.push('老闆娘：「你們工程師喔，眼睛都好累的樣子。來，送你一杯豆漿。」'); await narr(U.pick(lines)); if (/戴眼鏡/.test(lines[0]) && !Sys.knows('player', 'ansonTired')) Sys.learn('player', 'ansonTired', null); }) },
+    ];
+  };
+  OBJ.bobashop = () => {
+    if (!T.in('10:00', '22:30')) return [{ icon: '🔒', t: '飲料店還沒開', sub: '10:00–22:30', v: 'x', dis: true }];
+    return [{ icon: '🧋', t: '買一杯珍珠奶茶', sub: 'NT$65・放進包包，可以送人', v: 'a', run: async () => {
+      if (!buy(65)) return;
+      await SW.scene(async () => {
+        await narr('店員：「甜度冰塊？」');
+        const c = await choose([{ t: '「全糖去冰。」', v: 1 }, { t: '「微糖微冰。」', v: 2 }, { t: '「無糖少冰，珍珠多一點。」', v: 3 }]);
+        await narr(c === 1 ? '店員默默點頭。你感受到了尊重。' : c === 2 ? '標準的新竹上班族。' : '店員：「……珍珠多一點的無糖。好喔。」');
+        await folLine({ lele: '幫我也買一杯！全糖！', mira: '你是那種會喝全糖的人嗎……我不評論。', hsiu: '珍奶不是飲料，是一餐。' });
+      });
+      Sys.item('boba', 1);
+    } }];
+  };
+  OBJ.fountain = () => [{ icon: '🪙', t: '丟一枚硬幣許願', sub: 'NT$10', v: 'w', dis: SW.dailyHas('wish'), run: async () => {
+    SW.dailyOnce('wish'); Sys.money(-10);
+    await SW.scene(async () => {
+      const c = await choose([{ t: '希望這週可以準時下班', v: 'work' }, { t: '希望轉角可以留下來', v: 'cafe' }, { t: '希望遇到喜歡的人', v: 'love' }, { t: '希望大家都好好的', v: 'all' }]);
+      await narr('硬幣在水面上轉了一圈，沉下去了。');
+      await narr({ work: '旁邊一個實習生也在丟硬幣。你們對看一眼，同時嘆氣。', cafe: '噴水池的水聲好像大了一點。不知道是不是錯覺。', love: '一對情侶從你身後經過。你決定把這當成好兆頭。', all: '你許了一個很普通的願望。普通到有點想哭。' }[c]);
+      if (c === 'cafe') S().cafe.will += 1;
+      await folLine({ pei: '你許了什麼願？……不要說，說了就不靈了。', lele: '我也要許！我希望我的前任發胖！', anson: '我小時候也很愛丟硬幣。', mira: '……許願池的收入去哪了，我一直很好奇。' });
+    });
+    Sys.mood(4);
+  } }];
+  OBJ.hoop = () => [{ icon: '🏀', t: '投籃', sub: '時機小遊戲・+體能', v: 'h', run: async () => {
+    if (!(await Sys.confirmTime(20, '投籃'))) return;
+    let r;
+    await SW.scene(async () => {
+      r = await SW.MG.timing({ title: '光復公園籃球場', rounds: 5, verb: '出手！', labels: ['罰球線', '左側四十五度', '底線', '三分線', '最後一球'], zone: 0.15 + S().p.skill.fitness * 0.012 });
+      const made = Math.round(r.score / 20);
+      await narr(made >= 4 ? `${made} 投 ${made} 中……不對，是五投${made}中。旁邊的國中生吹了一聲口哨。` : made >= 2 ? `五投${made}中。籃框對你很冷淡。` : '五投零中。一顆球彈回來打到你的頭。');
+      if (SW.W.present('hsiu') && SW.W.distTo('hsiu') < 15) { await say('hsiu', r.score > 70 ? '……可以喔。來鬥牛？' : '手腕要壓！來，我教你。'); Sys.ch('hsiu', { friend: 3, comfort: 2 }); }
+      await folLine({ pei: '帥喔！再一球！', lele: '我幫你拍慢動作！', anson: '我高中是籃球隊的……替補的替補。', mira: '你的姿勢……很有個人風格。' });
+      await Sys.advance(20, false);
+    });
+    Sys.skill('fitness', 0.3); Sys.energy(-6); Sys.mood(5);
+  } }];
+  const FORTUNE = {
+    work: ['聖筊。這週的 Bug 會在你放棄前一刻現形。', '笑筊。土地公好像覺得你的問題很好笑。也許答案你早就知道了。', '陰筊。不是現在。先去吃飯。'],
+    love: ['聖筊。你在意的那個人，也在注意你。', '笑筊。土地公笑了。也許你該先問問自己想要什麼。', '陰筊。時機未到，但不代表沒有。'],
+    cafe: ['聖筊。這條街會記得它的轉角。', '笑筊。有些事不是錢能解決的——但錢也很有用。', '陰筊。辦法不只一個，換個方向試試。'],
+    friends: ['聖筊。你身邊有人需要你，你也需要他們。', '笑筊。朋友之間的誤會，通常一頓宵夜就能解決。', '陰筊。有一句「對不起」或「謝謝」，你還沒說出口。'],
+  };
+  OBJ.temple = () => [{ icon: '🙏', t: '拜拜、擲筊', sub: '問土地公一件事', v: 't', dis: SW.dailyHas('temple'), run: async () => {
+    SW.dailyOnce('temple');
+    await SW.scene(async () => {
+      await narr('你點了三炷香。煙往上飄，被新竹的風吹歪了。');
+      const q = await choose([{ t: '問工作', v: 'work' }, { t: '問感情', v: 'love' }, { t: '問轉角咖啡廳', v: 'cafe' }, { t: '問朋友', v: 'friends' }]);
+      await narr('你雙手捧著兩片紅色的筊，往地上一擲——');
+      const r = Math.random(), i = r < 0.5 ? 0 : r < 0.75 ? 1 : 2;
+      await narr(FORTUNE[q][i]);
+      if (q === 'cafe' && i === 0) S().cafe.will += 2;
+      await folLine({ anson: '我不拜拜，但我很喜歡這裡的安靜。每個人都有自己跟天說話的方式。', lele: '我上次問感情是陰筊。……然後我就分手了。土地公好準。', mira: '我阿嬤每次來都會幫我問工作。……她問了三年。', hsiu: '這不科學。……但我還是想知道我的結果。', pei: '我外婆以前每個月都會來這裡。' });
+    });
+    Sys.mood(6);
+  } }];
+  OBJ.vending = () => [
+    { icon: '🥤', t: '麥香奶茶', sub: 'NT$20・+體力', v: 'a', run: () => { if (!buy(20)) return; Sys.energy(7); UI.toast('🥤 機器「喀啷」一聲。麥香奶茶，台灣人的靈魂。'); } },
+    { icon: '⚡', t: '能量飲料', sub: 'NT$45・放進包包', v: 'b', run: () => { if (!buy(45)) return; Sys.item('energy', 1); UI.toast('⚡ 一罐能量飲料滾了出來。'); } },
+  ];
+  const STALL = {
+    chicken: { price: 80, energy: 25, mood: 5, text: '雞排比你的臉還大。老闆問：「要切要辣？」', fol: { lele: '不切不辣！用啃的才是靈魂！', hsiu: '這個熱量……算了，今天練過腿。', mira: '切。我不想被別人看到我在啃雞排。' } },
+    tofu: { price: 70, energy: 15, mood: 4, text: '臭豆腐的味道從三十公尺外就開始宣示主權。泡菜很脆。', fol: { mira: '……這個味道是不是跟公司茶水間的鯖魚有親戚關係。', pei: '這家的泡菜是我的最愛！', anson: '我小時候很怕這個味道，長大才知道它是好人。' } },
+    corn: { price: 60, energy: 14, mood: 3, text: '烤玉米刷了三層醬，黑胡椒的香氣很霸道。', fol: { hsiu: '玉米要從哪邊開始啃，是人格測驗。', lele: '我的牙縫！我的牙縫！' } },
+    gua: { price: 60, energy: 16, mood: 3, text: '刈包裡的滷肉肥瘦剛好，花生粉灑得到處都是。', fol: { anson: '花生粉掉在我的外套上了。……沒關係，很香。' } },
+    cake: { price: 50, energy: 8, mood: 7, text: '雞蛋糕是小熊形狀的。你從頭開始吃，有點罪惡感。', fol: { pei: '我要吃有奶油餡的那隻！', lele: '小熊好可愛我捨不得吃（吃掉）', mira: '……我先吃耳朵。' } },
+  };
+  OBJ.stall = (o) => {
+    if (!marketOpen()) return [{ icon: '🔒', t: '攤位還沒開', sub: '東門夜市 17:00 才營業', v: 'x', dis: true }];
+    const k = o.stall;
+    if (k === 'boba') return [{ icon: '🧋', t: '珍珠奶茶', sub: 'NT$55・放進包包', v: 'b', run: () => { if (!buy(55)) return; Sys.item('boba', 1); UI.toast('🧋 夜市珍奶，珍珠比奶茶還多。'); } }];
+    if (k === 'balloon') return [{ icon: '🎯', t: '射氣球（10 發）', sub: 'NT$100・中越多獎品越大', v: 'g', run: async () => {
+      if (!buy(100)) return;
+      let r;
+      await SW.scene(async () => {
+        r = await SW.MG.timing({ title: '射氣球', rounds: 5, verb: '砰！', labels: ['紅色', '藍色', '黃色', '那顆在晃的', '最後一發'], zone: 0.14 });
+        if (r.score >= 80) { await narr('老闆敲了一下鐵板：「大獎！」你抱走一隻比你小腿還大的熊熊娃娃。'); Sys.item('plush', 1); }
+        else if (r.score >= 50) { await narr('老闆：「小獎喔～」你拿到一包貓咪貼紙。'); Sys.item('sticker', 1); }
+        else await narr('老闆：「參加獎！」一支塑膠風車。它轉得很努力。');
+        const f = fol(); if (f) { await say(f, r.score >= 80 ? (SW.CH[f].date || S().p.partner === f ? '……要送我嗎？' : '你太強了吧！') : '哈哈哈，再來一次！'); Sys.ch(f, { comfort: 3, attract: (SW.CH[f].date || S().p.partner === f) && r.score >= 80 ? 3 : 0 }, true); }
+      });
+      Sys.mood(5);
+    } }];
+    if (k === 'fish') return [{ icon: '🐟', t: '撈金魚', sub: 'NT$80', v: 'f', run: async () => {
+      if (!buy(80)) return;
+      let r;
+      await SW.scene(async () => {
+        r = await SW.MG.timing({ title: '撈金魚（紙網很脆弱）', rounds: 3, verb: '撈！', labels: ['第一隻', '第二隻', '紙網快破了'], zone: 0.12 });
+        const n = Math.round(r.score / 34);
+        await narr(n >= 2 ? `你撈到 ${n} 隻金魚。老闆用塑膠袋裝好，綁了一個漂亮的結。` : n === 1 ? '撈到一隻！牠在袋子裡看起來很困惑。' : '紙網破了。金魚們好像在笑你。老闆送你一隻安慰獎。');
+        await narr('你把金魚送給旁邊一個哭著說沒撈到的小朋友。他停止哭泣，盯著你看了三秒，然後說謝謝。');
+        const f = fol(); if (f) { await say(f, '……你這個人，真的很容易對陌生人好欸。'); Sys.ch(f, { trust: 3, attract: SW.CH[f].date || S().p.partner === f ? 2 : 0 }, true); }
+      });
+      Sys.mood(6);
+    } }];
+    const s = STALL[k];
+    return [{ icon: o.icon, t: `買${o.label}`, sub: `NT$${s.price}・+體力`, v: 'e', run: async () => {
+      if (!buy(s.price)) return;
+      await SW.scene(async () => { await narr(s.text); await folLine(s.fol); });
+      Sys.energy(s.energy); Sys.mood(s.mood);
+    } }];
+  };
+  SUB.stall = (o) => (marketOpen() ? '東門夜市・營業中' : '晚上五點開市');
+
+  // ----- street cats -----
+  SW.CATS = { cat_latte: '橘貓「拿鐵」', cat_calico: '三花貓', cat_black: '黑貓', cat_tabby: '虎斑貓', cat_white: '白貓', cat_tux: '賓士貓', cat_grey: '灰貓', cat_chonk: '胖橘' };
+  OBJ.cat = (o) => {
+    const st = S(), found = st.f.cats && st.f.cats[o.cat];
+    return [{ icon: '🐈', t: found ? `摸摸${o.label}` : `蹲下來，慢慢靠近${o.label}`, sub: found ? '牠認得你了' : '新竹街貓圖鑑', v: 'c', run: async () => {
+      st.f.cats = st.f.cats || {};
+      await SW.scene(async () => {
+        if (found) { await narr(U.pick(['牠瞇著眼睛看你，尾巴晃了一下。', '牠翻肚了。這是信任，也可能是陷阱。', '牠蹭了蹭你的鞋子，然後假裝什麼都沒發生。'])); return; }
+        await narr(U.pick(['你蹲下來，伸出一根手指。牠聞了聞，用頭頂了一下。', '牠先是警戒地看著你，然後慢慢瞇起眼睛。', '牠「喵」了一聲，好像在說：你終於來了。']));
+        st.f.cats[o.cat] = T.day();
+        const n = Object.keys(st.f.cats).length;
+        UI.toast(`🐈 新竹街貓圖鑑：${n}／8`);
+        if (o.cat === 'cat_latte') {
+          await narr('牠的項圈上寫著兩個字：「拿鐵」。轉角咖啡廳布告欄上那張尋貓啟事！');
+          await narr('你拍了照片傳給小沛。');
+          Sys.msg('pei', 'me', '（照片：河堤上的胖橘貓）這是拿鐵嗎！？');
+          Sys.msgLater(2, 'pei', 'pei', '拿鐵！！！！！牠是我們店的店貓！失蹤兩個禮拜了！我馬上過去！！謝謝你謝謝你謝謝你😭😭');
+          Sys.ch('pei', { friend: 6, trust: 4 }); Sys.mem('pei', '你在河堤找到了失蹤的店貓拿鐵', 1, 'latteCat'); st.f.latteFound = true; st.cafe.will += 4;
+        }
+        if (n === 8) { await narr('你集滿了八隻新竹街貓。手機相簿現在有兩百張貓的照片。'); Sys.msg('mira', 'me', '（八張貓咪照片）我集滿了這附近所有的街貓。'); Sys.msgLater(3, 'mira', 'mira', '……你是我見過最無聊也最了不起的人。把照片全部傳給我。全部。'); Sys.ch('mira', { friend: 6, comfort: 5 }); Sys.mem('mira', '你集滿了新竹街貓圖鑑，把兩百張照片傳給米拉', 1, 'catDex'); }
+        const f = fol(); if (f) { await say(f, { mira: '……可以讓我摸一下嗎。一下就好。', lele: '好可愛好可愛好可愛！', pei: '牠的毛好亮，一定有人在餵。', anson: '牠好像在笑。', hsiu: '我對貓過敏。（他還是伸手摸了）', kai: '別動，我拍一張。', yuna: '公的、三歲左右、有結紮。……職業病，抱歉。' }[f] || '好可愛。'); Sys.ch(f, { comfort: 3 }, true); }
+      });
+      Sys.mood(found ? 1 : 5);
+    } }];
+  };
+})(window.SW);

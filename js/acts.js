@@ -26,15 +26,16 @@
     gym: { name: '一起健身', map: 'gym', spots: ['center', 'yoga2'], icon: '🏋️', dur: 60 },
     jam: { name: '練團', map: 'studio', spots: ['guitar', 'center'], icon: '🎸', dur: 60 },
     cook: { name: '來我家吃飯', map: 'home', spots: ['dining', 'center'], icon: '🍳', dur: 90 },
+    market: { name: '逛夜市', map: 'city', spots: ['market1', 'market2'], icon: '🏮', dur: 75, evening: true },
   };
   const PREF = {
-    mira: { coffee: 10, walk: 10, gym: 6, jam: -12, dinner: 0, cook: 6 },
-    hsiu: { gym: 15, dinner: 10, jam: 4, coffee: 0, walk: -5, cook: 0 },
-    pei: { jam: 20, dinner: 8, walk: 6, coffee: -8, gym: -5, cook: 8 },
-    anson: { coffee: 10, walk: 12, cook: 15, dinner: 0, gym: -6, jam: 4 },
-    lele: { dinner: 15, coffee: 10, cook: 6, walk: 4, gym: -2, jam: 2 },
-    kai: { walk: 20, coffee: 10, dinner: 8, jam: 0, gym: -10, cook: 5 },
-    yuna: { dinner: 12, walk: 6, coffee: 6, gym: 4, jam: -5, cook: 5 },
+    mira: { market: 6, coffee: 10, walk: 10, gym: 6, jam: -12, dinner: 0, cook: 6 },
+    hsiu: { market: 8, gym: 15, dinner: 10, jam: 4, coffee: 0, walk: -5, cook: 0 },
+    pei: { market: 12, jam: 20, dinner: 8, walk: 6, coffee: -8, gym: -5, cook: 8 },
+    anson: { market: 4, coffee: 10, walk: 12, cook: 15, dinner: 0, gym: -6, jam: 4 },
+    lele: { market: 18, dinner: 15, coffee: 10, cook: 6, walk: 4, gym: -2, jam: 2 },
+    kai: { market: 12, walk: 20, coffee: 10, dinner: 8, jam: 0, gym: -10, cook: 5 },
+    yuna: { market: 14, dinner: 12, walk: 6, coffee: 6, gym: 4, jam: -5, cook: 5 },
   };
 
   Sys.interact = function (tg) {
@@ -246,7 +247,7 @@
   };
   Acts.placeActs = function () {
     const map = S().p.map;
-    return Object.entries(SW.ACTS).filter(([k, a]) => a.map === map && (k !== 'walk' || SW.W.get('city') && S().p.y > 28)).map(([k]) => k);
+    return Object.entries(SW.ACTS).filter(([k, a]) => a.map === map && (k !== 'walk' || S().p.y >= 84) && (k !== 'market' || (S().p.x >= 85 && S().p.x <= 98 && S().p.y >= 54 && S().p.y <= 75 && (T.mod() >= 17 * 60 || T.mod() < 30)))).map(([k]) => k);
   };
   Acts.chooseJoint = async function (id) {
     const opts = Acts.placeActs();
@@ -411,6 +412,20 @@
       if (id === 'pei') { await say(id, res.score > 75 ? '欸！你跟上我了！我們週五可以一起上台！' : '節奏再穩一點就好，我很喜歡你那段 solo。'); if (res.score > 75) S().f.peiJam = true; }
       else await say(id, res.score > 70 ? '我們是不是可以組團了？' : '好吵（稱讚）。');
       return res.score;
+    },
+    market: async (id, opt) => {
+      await narr('東門夜市的燈一盞一盞亮起來。人潮擠得像週五的公司電梯。');
+      const a = await choose([{ t: '先吃雞排', v: 'chicken' }, { t: '先去射氣球', v: 'game' }, { t: '先買兩杯珍奶', v: 'boba' }]);
+      Sys.money(a === 'game' ? -100 : a === 'boba' ? -110 : -160);
+      if (a === 'game') { const r = await SW.MG.timing({ title: '射氣球', rounds: 4, verb: '砰！', labels: ['紅色', '藍色', '晃動的', '最後一發'], zone: 0.15 }); await say(id, r.score >= 75 ? (opt.romantic ? '大獎……你要送給我嗎？' : '你是不是偷練過！') : '哈哈哈哈老闆給你安慰獎耶！'); if (r.score >= 75) Sys.ch(id, { attract: opt.romantic ? 3 : 0, comfort: 2 }, true); }
+      else if (a === 'chicken') await say(id, '雞排要趁熱！不要拍照了，快吃！');
+      else await say(id, '乾杯！珍奶乾杯是台灣的國家儀式。');
+      const ev = U.pick(['crowd', 'rain', 'friend']);
+      if (ev === 'crowd') { await narr('人潮突然湧上來，你們差點被沖散。'); const c = await choose([{ t: '伸手拉住對方', v: 1 }, { t: '「在雞蛋糕攤集合！」', v: 0 }]); if (c) { await say(id, opt.romantic ? '……你的手很暖。' : '好險，差點變成夜市失蹤人口。'); Sys.ch(id, { comfort: 3, attract: opt.romantic ? 3 : 0 }, true); } else await say(id, '好，雞蛋糕攤！……你在哪？我只看到一百個雞蛋糕攤！'); }
+      else if (ev === 'rain') { await narr('突然下起雨。整條夜市的人同時躲進攤位的帆布底下。'); await say(id, '我們跟臭豆腐老闆一起躲雨耶。這是什麼浪漫。'); }
+      else { const o = U.pick(SW.CORE.filter((x) => x !== id)); await narr(`你們在撈金魚攤前遇到了${nm(o)}。`); await say(o, opt.romantic ? '喔～～～～我什麼都沒看到。' : '你們也來！一起逛！'); Sys.ch(o, { friend: 2 }, true); }
+      Sys.energy(18); Sys.mood(6);
+      return 70;
     },
     cook: async (id) => {
       const st = S();

@@ -142,7 +142,7 @@
     const st = S();
     for (const p of st.prom) {
       if (p.status !== 'pending') continue;
-      if (p.kind === 'meet' && p.auto && st.p.map === p.map && st.t >= p.from - 20 && st.t <= p.until && SW.W.present(p.who) && !UI.busy()) {
+      if (p.kind === 'meet' && p.auto && st.p.map === p.map && st.t >= p.from - 20 && st.t <= p.until && SW.W.present(p.who) && !UI.busy() && (p.map !== 'city' || SW.W.distTo(p.who) < 10)) {
         Sys.keep(p.id);
         continue;
       }
@@ -378,7 +378,7 @@
   // ---------- shop ----------
   Sys.shop = async function () {
     const st = S();
-    const ids = Object.keys(SW.ITEMS);
+    const ids = Object.keys(SW.ITEMS).filter((k) => !SW.ITEMS[k].prize);
     const v = await UI.sheet('全家福超商', `存款 ${U.money(st.p.money)}・買了會放進包包，送禮或自己用都可以`, ids.map((id) => {
       const it = SW.ITEMS[id];
       return { icon: it.icon, t: `${it.name}`, sub: `${U.money(it.price)}${st.p.inv[id] ? `・已有 ${st.p.inv[id]}` : ''}`, v: id, dis: st.p.money < it.price };
