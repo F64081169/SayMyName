@@ -88,6 +88,7 @@
   Dir.onEnter = function (mapId) {
     const S = SW.S;
     S.f['v_' + mapId + '_' + T.day()] = true;
+    S.f.lastEnter = { map: mapId, t: S.t };
     const pj = S.f.pendingJoint;
     if (pj && S.p.follower === pj.id && SW.ACTS[pj.act].map === mapId) { setTimeout(() => SW.Acts.joint(pj.id, pj.act, { romantic: pj.romantic }), 250); return; }
     if (S.p.follower && SW.Acts.placeActs().length && !pj) UI.toast(`✨ 點${SW.name(S.p.follower)} →「一起做點什麼」`);
@@ -95,6 +96,27 @@
     SW.save();
   };
 
+  // a major scene is ready right where the player is: long activities should stop for it
+  Dir.urgent = function () {
+    for (const st of Dir.list) if (st.kind === 'scene' && st.prio >= 60 && Dir.eligible(st)) return st;
+    return null;
+  };
+  // where the next thing is: used by the on-screen pointer
+  Dir.goal = function () {
+    const S = SW.S;
+    const soon = S.prom.filter((p) => p.status === 'pending' && p.map && (p.kind === 'meet' ? p.from - S.t < 180 && p.from - S.t > -30 : p.until - S.t < 360)).sort((a, b) => a.from - b.from)[0];
+    if (soon) return { map: soon.map, label: SW.tx(soon.text), spot: null };
+    for (const h of SW.HINTS || []) {
+      if (!h.go) continue;
+      if (h.day !== undefined && ![].concat(h.day).includes(T.day())) continue;
+      if (h.from && T.mod() < U.hm(h.from)) continue;
+      if (h.to && T.mod() >= U.hm(h.to)) continue;
+      if (h.cond && !h.cond(S)) continue;
+      const go = typeof h.go === 'function' ? h.go(S) : h.go; const [map, spot] = go.split(':');
+      return { map, spot, label: (typeof h.text === 'function' ? h.text(S) : h.text).replace(/^\S+\s/, '') };
+    }
+    return null;
+  };
   Dir.hints = function () {
     const out = [];
     for (const h of SW.HINTS || []) {

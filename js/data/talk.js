@@ -403,7 +403,7 @@
             Sys.mem([], '你在公司幫轉角爭取到福委會的合作機會', 1, 'pitch', true);
           } else { await say('boss', '這種事要有人背書。你先把自己的事做好，我才好開口。'); }
         }
-        if (v === 'leave') { W.bossTrust -= 2; await say('boss', '……去吧。明天早點來。'); const b = SW.W.building('office'); SW.W.enter('city', b.door[0] + 0.5, b.door[1] + 1.5, 'down'); }
+        if (v === 'leave') { W.bossTrust -= 2; await say('boss', '……去吧。明天早點來。'); const b = SW.W.building('office'); SW.W.enter('city', b.door[0] + 0.5, b.door[1] + 2.4, 'down'); }
       }
       if (id === 'tsai') {
         if (v === 'talk') await say('tsai', U.pick(['開店二十年，我學到一件事：人喝醉了才說真話，但清醒時說的真話比較值錢。', '你們那群朋友啊，每次都坐那張長桌，吵得要死。……我很喜歡。', '好日子不是每天都有。所以店名才叫好日子。']));
@@ -470,6 +470,7 @@
   };
 
   // ---------- phone replies ----------
+  Talk.lateSeen = (id) => ({ mira: '……嗯。下次早點回。', hsiu: '喔。已讀不回是一種藝術。', pei: '沒關係啦～你一定很忙！', anson: '沒關係，我知道你很忙。', lele: '我以為你被外星人抓走了！！', kai: '沒事，我也常忘記回。', yuna: '哈，我懂，我也是看到就忘。', boss: '……下次早點回。' }[id] || '沒關係。');
   Talk.lateReply = (id) => ({ mira: '……好。我會等。但不要太晚。', hsiu: '喔。', pei: '沒問題～我幫你留位子！', anson: '慢慢來，路上小心。', lele: '快點啦！！我已經點了兩杯了！', kai: '好，我先拍點東西。', yuna: '沒關係，我也剛下班。' }[id] || '好。');
   Talk.cancelReply = function (id, pen, p) {
     const big = pen >= 6;

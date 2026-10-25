@@ -23,11 +23,11 @@
   OBJ.mydesk = () => {
     const st = S(), bug = SW.Puzzles.today();
     return [
-      bug ? { icon: '🐞', t: `修 Bug：${bug.short}`, sub: '約 90 分鐘・Debug 小遊戲', v: 'bug', run: () => workBug(bug) } : null,
+      bug ? { icon: '🐞', t: `修 Bug：${bug.short}`, sub: '約 90 分鐘・Debug 小遊戲（中途放棄只花 15 分鐘）', v: 'bug', run: () => workBug(bug) } : null,
       { icon: '📝', t: '寫週報', sub: '60 分鐘・主管會看', v: 'report', run: () => timed(60, '寫週報', null).then((ok) => { if (ok) { st.work.perf += 1; st.work.bossTrust += 1; UI.toast('週報寫完了。主管應該會滿意。'); } }) },
       { icon: '📺', t: '摸魚', sub: '30 分鐘・心情變好、但有風險', v: 'slack', run: slack },
       { icon: '😈', t: '惡搞同事', sub: '辦公室傳奇的誕生', v: 'prank', run: prankMenu },
-      { icon: '🏃', t: '準時下班', sub: '直接走到公司門口', v: 'leave', run: () => { const b = SW.W.building('office'); SW.W.enter('city', b.door[0] + 0.5, b.door[1] + 1.5, 'down'); } },
+      { icon: '🏃', t: '準時下班', sub: '直接走到公司門口', v: 'leave', run: () => { const b = SW.W.building('office'); SW.W.enter('city', b.door[0] + 0.5, b.door[1] + 2.4, 'down'); } },
     ];
   };
   async function workBug(bug) {
@@ -38,7 +38,7 @@
     let res;
     await SW.scene(async () => {
       res = await SW.MG.debug(bug.id, { partner, title: bug.title });
-      await Sys.advance(res.solved ? 90 : 60, res.solved ? '⏳ 寫 patch、跑測試、送 PR……' : '⏳ 你盯著 log 到眼睛發酸……');
+      await Sys.advance(res.solved ? 90 : res.quit ? 15 : 60, res.solved ? '⏳ 寫 patch、跑測試、送 PR……' : '⏳ 你盯著 log 到眼睛發酸……');
       if (res.solved) {
         st.work.bugsDone.push(bug.id); st.stats.bugs++; st.work.perf += res.mistakes <= 1 ? 3 : 2; st.work.bossTrust += res.mistakes <= 1 ? 4 : 2;
         Sys.skill('debug', 0.5);
@@ -214,12 +214,18 @@
   OBJ.bed = () => {
     const m = T.mod();
     return [
-      { icon: '🌙', t: '睡覺（到明天早上）', sub: m < 18 * 60 && m > 6 * 60 ? '現在睡會錯過今天剩下的事' : '恢復體力', v: 'sleep', run: async () => { if (!(await Sys.confirmTime((T.today('07:45') + (m > 7 * 60 ? 1440 : 0)) - S().t, '睡覺'))) return; await Sys.sleepUntil('07:45'); } },
+      { icon: '🌙', t: '睡覺（到明天早上）', sub: m < 18 * 60 && m > 6 * 60 ? '⚠️ 現在睡會跳過今天剩下的一切' : '恢復體力', v: 'sleep', run: async () => { if (m < 18 * 60 && m > 6 * 60 && !(await sureSleep())) return; if (!(await Sys.confirmTime((T.today('07:45') + (m > 7 * 60 ? 1440 : 0)) - S().t, '睡覺'))) return; await Sys.sleepUntil('07:45'); } },
       { icon: '😴', t: '小睡一小時', sub: '+體力', v: 'nap', run: async () => { if (!(await Sys.confirmTime(60, '小睡'))) return; await Sys.advance(60, '💤 小睡一下……'); Sys.energy(20 + (S().p.restBonus ? 8 : 0)); } },
       { icon: '🛌', t: '什麼都不做，躺一整天', sub: '直接睡到明天早上', v: 'lazy', dis: m > 16 * 60, run: lazyDay },
     ];
   };
+  async function sureSleep() {
+    let ok = false;
+    await SW.scene(async () => { await narr(`現在才 ${U.fmt(T.mod())}。睡下去會直接到明天早上，今天的事都會在你睡覺時發生。`); ok = await choose([{ t: '還是要睡', v: true }, { t: '算了，起來', v: false }]); });
+    return ok;
+  }
   async function lazyDay() {
+    if (!(await sureSleep())) return;
     if (!(await Sys.confirmTime((T.today('07:45') + 1440) - S().t, '躺一整天'))) return;
     await SW.scene(async () => {
       await narr('你決定今天什麼都不做。');

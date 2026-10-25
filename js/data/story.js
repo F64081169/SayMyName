@@ -10,8 +10,8 @@
   const wait = (m, l) => Sys.advance(m, l);
   const K = (f) => Sys.knows('player', f);
   const here = (id) => SW.W.present(id);
-  const msg = (th, from, text, reply) => Sys.msg(th, from, text, { reply });
-  const later = (m, th, from, text, reply) => Sys.msgLater(m, th, from, text, reply);
+  const msg = (th, from, text, reply, exp) => Sys.msg(th, from, text, { reply, exp });
+  const later = (m, th, from, text, reply, expM) => Sys.msgLater(m, th, from, text, reply, expM);
   const add = (st) => Dir.add(st);
   const R = SW.R;
   const at = T.at;
@@ -32,20 +32,21 @@
     generic: (d) => ({ kicker: `第 ${d} 天・${T.dayName(d)}`, title: U.pick(['日子還在繼續', '新的一週，舊的我們', '世界記得你']), lines: [['A線', d === 8 ? '今天公布 Feature Owner。' : '工作還在繼續。'], ['B線', (S().cafe.outcome === 'close' ? '轉角不在了，但大家還是找得到地方坐。' : '轉角（或它的新家）還是大家的老位子。')], ['C線', '這個世界記得你上週做過的每一件事。']], note: '第一季後續的故事會在之後的更新加入。現在，你可以自由地生活。' }),
   };
   SW.HINTS = [
-    { day: 1, to: '09:40', cond: (s) => s.p.map === 'home', text: '📱 看看手機訊息（右上角 / P），然後出門——或不要' },
-    { day: 1, to: '17:00', cond: (s) => !s.f.bug4521, text: '🐞 主管：Bug #4521 下午五點前（公司座位 💻）' },
-    { day: 1, from: '17:00', to: '19:00', cond: (s) => K('party') && !s.f.partyDone, text: '🎂 19:00 小沛的驚喜派對在好日子餐酒館' },
-    { day: 2, to: '10:30', text: '💻 10:00 Code Review（公司會議室）' },
-    { day: 2, from: '20:40', to: '23:30', cond: () => K('breakup') && !S().f.leleComforted, text: '🌙 樂樂一個人在河濱公園的長椅上' },
+    { day: 1, to: '11:00', cond: () => Sys.pendingReplies().length > 0, text: () => `📱 有 ${Sys.pendingReplies().length} 則訊息等你回覆（右上角手機 / P）` },
+    { day: 1, to: '10:00', cond: (s) => s.p.map === 'home' && !Sys.pendingReplies().length, text: '🚪 出門上班——或不要。公司在家的北邊（看右上角小地圖）', go: 'office' },
+    { day: 1, to: '17:00', cond: (s) => !s.f.bug4521 && !Sys.pending('bug4521'), text: '🐞 主管想要 Bug #4521 五點前修好（公司・你的座位 💻）', go: 'office' },
+    { day: 1, from: '17:00', to: '19:00', cond: (s) => K('party') && !s.f.partyDone && !Sys.pending('party'), text: '🎂 19:00 小沛的驚喜派對在好日子餐酒館', go: 'bar' },
+    { day: 2, to: '10:30', text: '💻 10:00 Code Review（公司會議室）', go: 'office' },
+    { day: 2, from: '20:40', to: '23:30', cond: () => K('breakup') && !S().f.leleComforted, text: '🌙 樂樂一個人在河濱公園的長椅上', go: 'city:park1' },
     { day: 3, cond: (s) => !!s.f.leleAskPending, text: '🏠 樂樂想借住：跟米拉商量一下' },
-    { day: 3, from: '17:00', to: '21:30', cond: (s) => !s.f.gatherDone, text: '☕ 19:00 大家在轉角老位子聚會' },
-    { day: 4, from: '18:30', to: '21:30', text: '⛪ 19:30 教會小組（可以去，也可以不去）' },
-    { day: 4, from: '20:30', to: '22:40', cond: (s) => (s.f.studioClue || s.f.eavesHsiu || s.f.sawNotebook) && !K('hsiuSong'), text: '🎸 回聲工作室今晚好像有人在偷偷練歌' },
+    { day: 3, from: '17:00', to: '21:30', cond: (s) => !s.f.gatherDone, text: '☕ 19:00 大家在轉角老位子聚會', go: 'cafe' },
+    { day: 4, from: '18:30', to: '21:30', text: '⛪ 19:30 教會小組（可以去，也可以不去）', go: 'church' },
+    { day: 4, from: '20:30', to: '22:40', cond: (s) => (s.f.studioClue || s.f.eavesHsiu || s.f.sawNotebook) && !K('hsiuSong'), text: '🎸 回聲工作室今晚好像有人在偷偷練歌', go: 'studio' },
     { day: 5, to: '20:30', text: '📅 今晚好多事撞在一起，打開手機「行程」看看' },
-    { day: 6, from: '12:30', to: '16:00', cond: () => K('lease'), text: '☕ 小沛下午兩點要和房東談判' },
-    { day: 7, from: '09:00', to: '11:00', text: '⛪ 10:00 主日聚會（想去就去）' },
-    { day: 7, from: '13:30', to: '15:30', cond: () => K('lease'), text: '☕ 15:00 房東要給答覆' },
-    { day: 7, from: '17:00', to: '22:30', cond: (s) => !!s.cafe.outcome && !s.f.finaleDone, text: () => `🌙 今晚大家在${Story.finalePlaceName()}再聚一次` },
+    { day: 6, from: '12:30', to: '16:00', cond: () => K('lease'), text: '☕ 小沛下午兩點要和房東談判', go: 'cafe' },
+    { day: 7, from: '09:00', to: '11:00', text: '⛪ 10:00 主日聚會（想去就去）', go: 'church' },
+    { day: 7, from: '13:30', to: '15:30', cond: () => K('lease'), text: '☕ 15:00 房東要給答覆', go: 'cafe' },
+    { day: 7, from: '17:00', to: '22:30', cond: (s) => !!s.cafe.outcome && !s.f.finaleDone, text: () => `🌙 今晚大家在${Story.finalePlaceName()}再聚一次`, go: () => Story.finalePlace() },
   ];
   SW.EVENTS = [];
   const EV = (d, hm, text, known) => SW.EVENTS.push({ at: at(d, hm), text, known });
@@ -78,27 +79,27 @@
       await narr(c === 1 ? '你救出小強。它發出一聲感激的「嗶」，然後撞上桌腳。' : c === 2 ? '小強的輪子在空中轉了十秒。你覺得它很像週一早上的自己。' : '五分鐘變成了十五分鐘。小強還在叫。');
     }
     await narr('手機震了三下。');
-    msg('boss', 'boss', '今天下午五點前，Bug 能解掉嗎？', 'd1_boss');
-    msg('mira', 'mira', '晚上七點小沛生日，記得來！好日子餐酒館。不要說出去。', 'd1_mira');
-    msg('lele', 'lele', '我覺得阿修最近怪怪的，你知道什麼嗎？', 'd1_lele');
+    msg('boss', 'boss', '今天下午五點前，Bug 能解掉嗎？', 'd1_boss', at(1, '13:00'));
+    msg('mira', 'mira', '晚上七點小沛生日，記得來！好日子餐酒館。不要說出去。', 'd1_mira', at(1, '18:45'));
+    msg('lele', 'lele', '我覺得阿修最近怪怪的，你知道什麼嗎？', 'd1_lele', at(1, '23:30'));
     Sys.learn('player', 'party', 'mira', true);
     st.f.trust_party = true;
     UI.toast('📱 點右上角手機（或按 P）回訊息。走到下方出口出門。');
   } });
   R.d1_boss = [
-    { t: '「沒問題！五點前搞定。」', fn: (st) => { st.f.bossPromise = 'yes'; Sys.promise({ id: 'bug4521', who: 'boss', text: '下午五點前修好 Bug #4521', map: 'office', from: st.t, until: at(1, '17:00'), kind: 'task', onBreak: 'bossBroken', onKeep: 'bossKept', breakText: '答應五點前修好 4521，沒做到', noWarn: false }); later(2, 'boss', 'boss', '好。我跟客戶說了。'); } },
+    { t: '「沒問題！五點前搞定。」', fn: (st) => { st.f.bossPromise = 'yes'; Sys.promise({ id: 'bug4521', who: 'boss', text: '修好 Bug #4521', map: 'office', from: st.t, until: at(1, '17:00'), kind: 'task', onBreak: 'bossBroken', onKeep: 'bossKept', breakText: '答應五點前修好 4521，沒做到', noWarn: false }); later(2, 'boss', 'boss', '好。我跟客戶說了。'); } },
     { t: '「我盡量。」', fn: (st) => { st.f.bossPromise = 'try'; later(2, 'boss', 'boss', '嗯。有問題早點說。'); } },
     { t: '「老實說，可能要到明天。」', fn: (st) => { st.f.bossPromise = 'honest'; st.work.bossTrust += 1; later(2, 'boss', 'boss', '好，謝謝你老實說。明天中午前。'); } },
   ];
   H.bossBroken = () => { S().work.bossTrust -= 8; };
   H.bossKept = () => { S().work.bossTrust += 5; };
   R.d1_mira = [
-    { t: '「一定到！」', fn: (st) => { Sys.promise({ id: 'party', who: 'mira', text: '19:00 小沛的驚喜生日派對', map: 'bar', from: at(1, '19:00'), until: at(1, '21:40'), kind: 'meet', auto: false, weight: 12, breakText: '你答應會去小沛的生日派對，最後沒出現', echo: 'party' }); later(2, 'mira', 'mira', '好。她以為只是跟我吃飯。七點前到，躲在長桌後面。'); } },
+    { t: '「一定到！」', fn: (st) => { Sys.promise({ id: 'party', who: 'mira', text: '小沛的驚喜生日派對（好日子餐酒館）', map: 'bar', from: at(1, '19:00'), until: at(1, '21:40'), kind: 'meet', auto: false, weight: 12, breakText: '你答應會去小沛的生日派對，最後沒出現', echo: 'party' }); later(2, 'mira', 'mira', '好。她以為只是跟我吃飯。七點前到，躲在長桌後面。'); } },
     { t: '「我盡量🙏」', fn: (st) => { Sys.promise({ id: 'party', who: 'mira', text: '盡量去小沛的生日派對', map: 'bar', from: at(1, '19:00'), until: at(1, '21:40'), kind: 'meet', auto: false, weight: 6, breakText: '你說會盡量去小沛的派對，最後沒來', echo: 'party' }); later(2, 'mira', 'mira', '「盡量」是工程師的「不會」。……開玩笑的。來就對了。'); } },
     { t: '「我可能要加班……」', fn: (st) => { st.f.partyWarned = true; later(2, 'mira', 'mira', '……好吧。那至少跟我說一聲。'); } },
   ];
   R.d1_lele = [
-    { t: '「真的？哪裡怪？」', fn: (st) => { Sys.learn('player', 'rumorLele', 'lele'); later(2, 'lele', 'lele', '他昨天問我「被拒絕的人通常多久會好」，然後一直往我這邊看！你說他是不是喜歡我？？', 'd1_lele2'); } },
+    { t: '「真的？哪裡怪？」', fn: (st) => { Sys.learn('player', 'rumorLele', 'lele'); later(2, 'lele', 'lele', '他昨天問我「被拒絕的人通常多久會好」，然後一直往我這邊看！你說他是不是喜歡我？？', 'd1_lele2', 600); } },
     { t: '「我幫你觀察看看。」', fn: (st) => { st.f.askHsiu = true; Sys.learn('player', 'rumorLele', 'lele'); later(2, 'lele', 'lele', '好！你是我的臥底🕵️ 我懷疑他喜歡我！！'); } },
     { t: '「別亂猜啦，他只是累。」', fn: () => { later(2, 'lele', 'lele', '哼，你一定知道什麼。'); } },
   ];
@@ -108,7 +109,7 @@
     { t: '「我去幫你問問。」', fn: (st) => { st.f.askHsiu = true; later(2, 'lele', 'lele', '你最好了！！'); } },
   ];
 
-  add({ id: 'd1_absent', kind: 'phone', day: 1, from: '11:30', cond: (st) => !st.f.v_office_1, run: (st) => { msg('boss', 'boss', '你今天沒進公司？', 'd1_absent'); } });
+  add({ id: 'd1_absent', kind: 'phone', day: 1, from: '11:30', cond: (st) => !st.f.v_office_1, run: (st) => { msg('boss', 'boss', '你今天沒進公司？', 'd1_absent', at(1, '14:00')); } });
   R.d1_absent = [
     { t: '「我在家遠端，等等就進去。」', fn: (st) => { st.work.bossTrust -= 1; } },
     { t: '「我今天身體不太舒服……」', fn: (st) => { st.f.sickLie = true; st.work.bossTrust -= 1; later(3, 'boss', 'boss', '好，多休息。4521 我先找阿修看。'); st.f.bug4521 = st.f.bug4521 || 'hsiu'; st.work.hsiuScore += 4; } },
@@ -119,15 +120,16 @@
     st.f.miraAsked = true;
     await say('mira', '欸，{N}。下午三點可以幫我跑一輪 regression 嗎？');
     await say('mira', '一個小時就好。我四點要交報告，一個人跑不完。');
-    const c = await choose([{ t: '「好，三點我去實驗室。」', v: 'yes' }, { t: '「我今天 Bug 很趕，可能沒辦法。」', v: 'no' }, { t: '「請我喝咖啡就幫你。」', v: 'deal' }]);
+    const clash = !st.f.bug4521 && Sys.pending('bug4521') ? '（會占掉你修 Bug #4521 的一小時）' : '';
+    const c = await choose([{ t: '「好，三點我去實驗室。」', sub: clash, v: 'yes' }, { t: '「我今天 Bug 很趕，可能沒辦法。」', v: 'no' }, { t: '「請我喝咖啡就幫你。」', sub: clash, v: 'deal' }]);
     if (c === 'no') { await say('mira', '……好吧。我自己來。'); Sys.ch('mira', { trust: 1 }, true); st.f.miraTestDeclined = true; return; }
     if (c === 'deal') { await say('mira', '成交。'); await narr('她把一杯美式放在你桌上。'); Sys.item('coffee', 1); Sys.ch('mira', { comfort: 2 }, true); }
     else await say('mira', '謝了。三點。不要忘記。');
-    Sys.promise({ id: 'miraTest', who: 'mira', text: '15:00 幫米拉跑 regression', map: 'office', from: at(1, '15:00'), until: at(1, '16:30'), kind: 'task', weight: 12, onBreak: 'miraTestBroken', echo: 'miraTest' });
+    Sys.promise({ id: 'miraTest', who: 'mira', text: '幫米拉跑 regression（實驗室）', map: 'office', from: at(1, '15:00'), until: at(1, '16:30'), kind: 'task', weight: 12, onBreak: 'miraTestBroken', echo: 'miraTest' });
   } });
-  add({ id: 'd1_mira_test_msg', kind: 'phone', day: 1, from: '10:30', to: '14:30', cond: (st) => !st.f.miraAsked && st.p.map !== 'office', run: (st) => { st.f.miraAsked = true; msg('mira', 'mira', '你今天會進公司嗎？下午三點可以幫我跑 regression 嗎？一小時就好。', 'd1_miratest'); } });
+  add({ id: 'd1_mira_test_msg', kind: 'phone', day: 1, from: '10:30', to: '14:30', cond: (st) => !st.f.miraAsked && st.p.map !== 'office', run: (st) => { st.f.miraAsked = true; msg('mira', 'mira', '你今天會進公司嗎？下午三點可以幫我跑 regression 嗎？一小時就好。', 'd1_miratest', at(1, '14:50')); } });
   R.d1_miratest = [
-    { t: '「好，三點到。」', fn: (st) => { Sys.promise({ id: 'miraTest', who: 'mira', text: '15:00 幫米拉跑 regression', map: 'office', from: at(1, '15:00'), until: at(1, '16:30'), kind: 'task', weight: 12, onBreak: 'miraTestBroken', echo: 'miraTest', quiet: false }); later(2, 'mira', 'mira', '謝了。'); } },
+    { t: '「好，三點到。」', fn: (st) => { Sys.promise({ id: 'miraTest', who: 'mira', text: '幫米拉跑 regression（實驗室）', map: 'office', from: at(1, '15:00'), until: at(1, '16:30'), kind: 'task', weight: 12, onBreak: 'miraTestBroken', echo: 'miraTest', quiet: false }); later(2, 'mira', 'mira', '謝了。'); } },
     { t: '「今天可能不行，抱歉。」', fn: (st) => { st.f.miraTestDeclined = true; later(2, 'mira', 'mira', '了解。'); } },
   ];
   H.miraTestBroken = function () {
@@ -170,7 +172,7 @@
     if (st.f.bug4521 === 'ontime') { msg('boss', 'boss', '4521 客戶那邊確認沒問題了。做得好。'); st.work.bossTrust += 3; return; }
     if (st.f.bug4521 === 'hsiu') return;
     if (st.f.bossPromise === 'honest') return;
-    msg('boss', 'boss', st.f.bossPromise === 'yes' ? '……五點了。答應之前要先評估。今晚能留下來把它弄完嗎？' : '4521 還沒好？今晚能留下來嗎？', 'd1_overtime');
+    msg('boss', 'boss', st.f.bossPromise === 'yes' ? '……五點了。答應之前要先評估。今晚能留下來把它弄完嗎？' : '4521 還沒好？今晚能留下來嗎？', 'd1_overtime', at(1, '19:00'));
   } });
   R.d1_overtime = [
     { t: '「我留下來。」', fn: (st) => { st.f.overtime = true; Sys.promise({ id: 'overtime1', who: 'boss', text: '今晚留在公司修完 Bug #4521', map: 'office', from: st.t, until: at(1, '21:00'), kind: 'task', onBreak: 'bossBroken' }); } },
@@ -185,7 +187,8 @@
   async function partyCore(st, late) {
     const pk = Sys.pending('party'); if (pk) { pk.status = 'kept'; pk.done = st.t; st.stats.kept++; pk.late = late; }
     const spoiled = st.f.partySpoiled;
-    const fol = st.p.follower;
+    const fol = st.p.follower || ['kai', 'yuna'].find((id) => SW.W.present(id));
+    const inside = st.f.lastEnter && st.f.lastEnter.map === 'bar' && st.t - st.f.lastEnter.t > 20;
     if (!late) {
       await narr('好日子餐酒館的長桌。燈關了一半，大家躲在桌子後面。');
       await say('mira', '噓——她來了。');
@@ -204,7 +207,7 @@
         Sys.npcCh('pei', { mood: 20 });
       }
     } else {
-      await narr('你推開好日子的門。長桌上的蛋糕只剩一半，蠟燭已經吹熄了。');
+      await narr(inside ? '你回過神來，長桌那邊已經唱完生日快樂歌了。蛋糕只剩一半。' : '你推開好日子的門。長桌上的蛋糕只剩一半，蠟燭已經吹熄了。');
       const p = Sys.prom('party');
       if (p && p.who === 'mira' && !p.lateSent) { await say('mira', '……你來了。', '😑'); Sys.ch('mira', { trust: -3, tension: 4 }, true); }
       else await say('mira', '來了就好。坐。');
@@ -311,12 +314,12 @@
   // =====================================================================
   add({ id: 'd2_morning', kind: 'phone', day: 2, from: '08:00', run: (st) => {
     msg('boss', 'boss', '10 點 code review，阿修主持。準時。');
-    msg('anson', 'anson', '週四晚上的小組，要來嗎？不勉強😊 主題是「安息」——我自己最需要的那種。', 'd2_anson');
+    msg('anson', 'anson', '週四晚上的小組，要來嗎？不勉強😊 主題是「安息」——我自己最需要的那種。', 'd2_anson', at(4, '19:00'));
     st.f.ansonInvited = true;
-    if (K('lease') && st.f.trust_lease) msg('pei', 'pei', '昨天的事……可以先不要跟大家說嗎？我還沒準備好。', 'd2_pei');
+    if (K('lease') && st.f.trust_lease) msg('pei', 'pei', '昨天的事……可以先不要跟大家說嗎？我還沒準備好。', 'd2_pei', at(3, '23:00'));
   } });
   R.d2_anson = [
-    { t: '「好，我會去。」', fn: (st) => { Sys.promise({ id: 'group', who: 'anson', text: '週四 19:30 教會小組', map: 'church', from: at(4, '19:30'), until: at(4, '21:00'), kind: 'meet', auto: false, weight: 6 }); later(2, 'anson', 'anson', '太好了！我會泡高山茶😊'); } },
+    { t: '「好，我會去。」', fn: (st) => { Sys.promise({ id: 'group', who: 'anson', text: '教會小組（光鹽教會）', map: 'church', from: at(4, '19:30'), until: at(4, '21:00'), kind: 'meet', auto: false, weight: 6 }); later(2, 'anson', 'anson', '太好了！我會泡高山茶😊'); } },
     { t: '「我考慮一下。」', fn: () => { later(2, 'anson', 'anson', '好～隨時都歡迎。'); } },
     { t: '「我不太習慣教會，但謝謝你。」', fn: (st) => { st.f.ansonInviteFri = true; later(2, 'anson', 'anson', '完全理解！那週五來社區愛宴吃飯？不用信什麼，吃就好😄'); } },
   ];
@@ -421,7 +424,7 @@
   // DAY 3 — EP02〈誰睡在我們家沙發上？〉
   // =====================================================================
   add({ id: 'd3_lele_ask', kind: 'phone', day: 3, from: '08:30', run: (st) => {
-    msg('lele', 'lele', '{N}……我可以借住你家沙發幾天嗎？阿哲要我這週搬走，我還沒找到房子😭', st.p.housing === 'shared' ? 'd3_lele_shared' : 'd3_lele_solo');
+    msg('lele', 'lele', '{N}……我可以借住你家沙發幾天嗎？阿哲要我這週搬走，我還沒找到房子😭', st.p.housing === 'shared' ? 'd3_lele_shared' : 'd3_lele_solo', at(3, '18:00'));
   } });
   const leleIn = (st, rules) => { st.f.leleStay = 'player'; st.f.leleRules = !!rules; Sys.ch('lele', { friend: 6, trust: 4 }); Sys.mem('lele', '樂樂失戀無家可歸時，你讓她借住', 1, 'leleStay'); };
   R.d3_lele_solo = [
@@ -452,7 +455,7 @@
     else { await say('mira', '……你這個人。'); await say('mira', '好吧。三晚。'); leleIn(st, true); Sys.ch('mira', { comfort: 4, trust: 2 }); }
     if (st.f.leleStay === 'player') msg('lele', 'me', '米拉說OK！今晚過來吧！');
   } });
-  add({ id: 'd3_lele_decide', kind: 'offscreen', day: 3, from: '12:00', cond: (st) => !!st.f.leleRefused || (!!st.f.leleAskPending && T.mod() >= 18 * 60), run: (st) => {
+  add({ id: 'd3_lele_decide', kind: 'offscreen', day: 3, from: '12:00', cond: (st) => !!st.f.leleRefused || (!st.f.leleStay && T.mod() >= 18 * 60), run: (st) => {
     if (st.f.leleAskPending) {
       st.f.leleAskPending = false;
       if (Sys.pair('lele', 'mira').friend >= 50) { st.f.leleStay = 'player'; Sys.ch('mira', { tension: 4 }, true); msg('mira', 'mira', '樂樂直接來問我了。我說好。……你應該先跟我討論的。'); return; }
@@ -528,7 +531,7 @@
       { t: '「阿修說得也有道理。」', v: 'accept' },
       { t: '（滑手機，不表態）', v: 'none' },
     ]);
-    if (c === 'gig') { st.f.gigPlanned = true; st.f.playerGig = true; st.cafe.plan = 'gig'; st.cafe.will += 5; Sys.ch('lele', { friend: 3 }, true); await say('pei', '你要上台？好……好！我們來做！'); Sys.promise({ id: 'gig', who: 'pei', text: '週五 20:00 轉角 Live（你答應上台）', map: 'cafe', from: at(5, '20:00'), until: at(5, '21:30'), kind: 'meet', auto: false, weight: 12 }); }
+    if (c === 'gig') { st.f.gigPlanned = true; st.f.playerGig = true; st.cafe.plan = 'gig'; st.cafe.will += 5; Sys.ch('lele', { friend: 3 }, true); await say('pei', '你要上台？好……好！我們來做！'); Sys.promise({ id: 'gig', who: 'pei', text: '轉角 Live（你答應上台）', map: 'cafe', from: at(5, '20:00'), until: at(5, '21:30'), kind: 'meet', auto: false, weight: 12 }); }
     else if (c === 'partner') { st.cafe.plan = 'partner'; st.f.partnerQuest = true; st.cafe.will += 6; await say('pei', '……謝謝你沒有叫我「加油」。'); if (here('anson')) { await say('anson', '教會一樓的交誼廳平日都空著，我可以去問牧師。'); st.f.churchOffer = true; } st.f.gigPlanned = true; }
     else if (c === 'ask') { st.cafe.will += 10; Sys.ch('pei', { trust: 6 }); await say('pei', '……我想試試看 Live。'); await say('pei', '但如果失敗了，我想要大家陪我一起接受。可以嗎？'); st.f.gigPlanned = true; st.cafe.plan = 'gig'; Sys.mem('pei', '你問小沛「你自己想怎麼做」', 1, 'askedPei'); }
     else if (c === 'accept') { st.cafe.will -= 8; st.cafe.plan = 'accept'; Sys.ch('hsiu', { friend: 3 }, true); Sys.ch('lele', { tension: 6 }); Sys.ch('pei', { trust: -3 }, true); await say('lele', '你們兩個很冷血耶！'); await say('pei', '……沒關係。他們說得對。'); }
@@ -564,7 +567,7 @@
     await say('boss', 'FW 2.3 明晚要出。需要一個人留守到十點，盯斷電測試。');
     await say('boss', '你，還是阿修？');
     const c = await choose([{ t: '「我來。」', v: 'me' }, { t: '「讓阿修來吧，他比較熟。」', v: 'hsiu' }, { t: '「與其留人，不如把斷電測試自動化。」', v: 'auto' }, { t: '「明天晚上我有事……」', v: 'busy' }]);
-    if (c === 'me') { st.f.releaseOwner = 'player'; Sys.promise({ id: 'release', who: 'boss', text: '週五 18:00 留守 FW 2.3 release', map: 'office', from: at(5, '18:00'), until: at(5, '19:30'), kind: 'meet', auto: false, onBreak: 'releaseBroken' }); await say('boss', '好。'); st.work.bossTrust += 2; }
+    if (c === 'me') { st.f.releaseOwner = 'player'; Sys.promise({ id: 'release', who: 'boss', text: '留守 FW 2.3 release', map: 'office', from: at(5, '18:00'), until: at(5, '19:30'), kind: 'meet', auto: false, onBreak: 'releaseBroken' }); await say('boss', '好。'); st.work.bossTrust += 2; }
     else if (c === 'hsiu') { st.f.releaseOwner = 'hsiu'; st.work.hsiuScore += 6; st.work.bossTrust -= 1; await say('boss', '好，那阿修。'); if (here('hsiu')) await say('hsiu', '……謝了。'); }
     else if (c === 'auto') {
       if (st.p.skill.debug >= 3.5) {
@@ -573,7 +576,7 @@
         await narr('腳本跑起來了。斷電測試機在你面前自己開開關關，像一隻規律呼吸的動物。');
         st.f.releaseOwner = 'auto'; st.work.bossTrust += 6; st.work.perf += 3; Sys.skill('debug', 0.5);
         await say('boss', '……不錯。很不錯。');
-      } else { await say('boss', '理想很好。但這週來不及。明天你留。'); st.f.releaseOwner = 'player'; Sys.promise({ id: 'release', who: 'boss', text: '週五 18:00 留守 FW 2.3 release', map: 'office', from: at(5, '18:00'), until: at(5, '19:30'), kind: 'meet', auto: false, onBreak: 'releaseBroken' }); }
+      } else { await say('boss', '理想很好。但這週來不及。明天你留。'); st.f.releaseOwner = 'player'; Sys.promise({ id: 'release', who: 'boss', text: '留守 FW 2.3 release', map: 'office', from: at(5, '18:00'), until: at(5, '19:30'), kind: 'meet', auto: false, onBreak: 'releaseBroken' }); }
     } else { st.f.releaseOwner = 'hsiu'; st.work.bossTrust -= 2; st.work.hsiuScore += 6; await say('boss', '那阿修。'); }
   } });
   add({ id: 'd4_release_off', kind: 'offscreen', day: 4, from: '16:00', cond: (st) => !st.f.releaseOwner, run: (st) => { st.f.releaseOwner = 'hsiu'; st.work.hsiuScore += 6; msg('boss', 'boss', '明天的 release 我讓阿修留。'); } });
@@ -602,13 +605,13 @@
     if (st.rel.anson.trust >= 50 || (st.f.ansonCare || 0) >= 1) {
       await say('anson', '明天的社區愛宴……我其實有點撐不住。下午可以來幫我嗎？');
       const e = await choose([{ t: '「好，四點我到。」', v: 'yes' }, { t: '「我找大家一起來幫忙！」', v: 'all' }, { t: '「明天我可能很忙……」', v: 'no' }]);
-      if (e === 'yes') Sys.promise({ id: 'ansonFri', who: 'anson', text: '週五 16:00 去教會幫安森備餐', map: 'church', from: at(5, '16:00'), until: at(5, '19:00'), kind: 'task', weight: 10 });
+      if (e === 'yes') Sys.promise({ id: 'ansonFri', who: 'anson', text: '去教會幫安森備餐', map: 'church', from: at(5, '16:00'), until: at(5, '19:00'), kind: 'task', weight: 10 });
       else if (e === 'all') { st.f.ansonCare = (st.f.ansonCare || 0) + 2; msg('group', 'me', '明天下午教會愛宴缺人手，大家有空去幫安森嗎？'); later(3, 'group', 'lele', '我可以去洗碗！！'); later(5, 'group', 'mira', '我五點後可以。'); }
     }
     if (st.p.skill.guitar >= 2.5) {
       await say('anson', '還有……週日主日我們的吉他手出國了。你會彈吉他對吧？可以幫忙嗎？');
       const w = await choose([{ t: '「好，我試試看。」', v: 1 }, { t: '「我不太適合，抱歉。」', v: 0 }]);
-      if (w) { st.f.worshipAsk = true; Sys.promise({ id: 'worship', who: 'anson', text: '週日 10:00 主日幫忙彈吉他', map: 'church', from: at(7, '10:00'), until: at(7, '11:00'), kind: 'meet', auto: false, weight: 8 }); }
+      if (w) { st.f.worshipAsk = true; Sys.promise({ id: 'worship', who: 'anson', text: '主日幫忙彈吉他', map: 'church', from: at(7, '10:00'), until: at(7, '11:00'), kind: 'meet', auto: false, weight: 8 }); }
     }
     st.stats.church++;
     Sys.mem('anson', '你參加了週四的小組，主題是「安息」', 1, 'group');
@@ -671,23 +674,23 @@
   // DAY 5 — EP03〈最糟糕的星期五〉
   // =====================================================================
   add({ id: 'd5_morning', kind: 'phone', day: 5, from: '08:00', run: (st) => {
-    if (st.f.gigPlanned && !Sys.prom('gig')) msg('pei', 'pei', '今晚八點，轉角 Live！你會來吧？🎸', 'd5_gig');
-    if (!Sys.prom('ansonFri') && !st.f.ansonOk) msg('anson', 'anson', '今天下午四點開始備餐，有空的話可以來幫個忙嗎🙏', 'd5_anson');
+    if (st.f.gigPlanned && !Sys.prom('gig')) msg('pei', 'pei', '今晚八點，轉角 Live！你會來吧？🎸', 'd5_gig', at(5, '20:00'));
+    if (!Sys.prom('ansonFri') && !st.f.ansonOk) msg('anson', 'anson', '今天下午四點開始備餐，有空的話可以來幫個忙嗎🙏', 'd5_anson', at(5, '16:30'));
     if (st.f.releaseOwner === 'player') msg('boss', 'boss', '今晚 18:00 release，記得。');
-    if (st.f.releaseOwner === 'hsiu' && st.f.hsiuPlan !== false && !st.f.hsiuQuit) msg('hsiu', 'hsiu', '欸……你今晚可以幫我顧 release 嗎？我八點……有事。拜託。', 'd5_hsiu');
+    if (st.f.releaseOwner === 'hsiu' && st.f.hsiuPlan !== false && !st.f.hsiuQuit) msg('hsiu', 'hsiu', '欸……你今晚可以幫我顧 release 嗎？我八點……有事。拜託。', 'd5_hsiu', at(5, '17:50'));
     st.f.hsiuPlan = st.f.hsiuPlan === undefined ? true : st.f.hsiuPlan;
   } });
   R.d5_gig = [
-    { t: '「一定到！」', fn: (st) => { Sys.promise({ id: 'gig', who: 'pei', text: '20:00 轉角 Live', map: 'cafe', from: at(5, '20:00'), until: at(5, '21:30'), kind: 'meet', auto: false, weight: 9 }); later(2, 'pei', 'pei', '耶！！我會留最好的位子給你！'); } },
+    { t: '「一定到！」', fn: (st) => { Sys.promise({ id: 'gig', who: 'pei', text: '轉角 Live', map: 'cafe', from: at(5, '20:00'), until: at(5, '21:30'), kind: 'meet', auto: false, weight: 9 }); later(2, 'pei', 'pei', '耶！！我會留最好的位子給你！'); } },
     { t: '「我盡量！」', fn: () => { later(2, 'pei', 'pei', '好～有空就來！'); } },
     { t: '「我今晚可能有事……」', fn: () => { later(2, 'pei', 'pei', '沒關係！我會錄影給你看😆'); } },
   ];
   R.d5_anson = [
-    { t: '「好，四點到。」', fn: () => { Sys.promise({ id: 'ansonFri', who: 'anson', text: '16:00 去教會幫安森備餐', map: 'church', from: at(5, '16:00'), until: at(5, '19:00'), kind: 'task', weight: 10 }); later(2, 'anson', 'anson', '謝謝你。真的。'); } },
+    { t: '「好，四點到。」', fn: () => { Sys.promise({ id: 'ansonFri', who: 'anson', text: '去教會幫安森備餐', map: 'church', from: at(5, '16:00'), until: at(5, '19:00'), kind: 'task', weight: 10 }); later(2, 'anson', 'anson', '謝謝你。真的。'); } },
     { t: '「今天真的沒辦法，抱歉。你別太累。」', fn: (st) => { st.f.ansonCare = (st.f.ansonCare || 0) + 0.5; later(2, 'anson', 'anson', '沒關係！我可以的😊'); } },
   ];
   R.d5_hsiu = [
-    { t: '「好，我幫你顧。」', fn: (st) => { st.f.releaseOwner = 'player'; st.f.hsiuFree = true; Sys.ch('hsiu', { friend: 6, trust: 5 }); Sys.promise({ id: 'release', who: 'boss', text: '週五 18:00 留守 FW 2.3 release（幫阿修顧）', map: 'office', from: at(5, '18:00'), until: at(5, '19:30'), kind: 'meet', auto: false, onBreak: 'releaseBroken' }); later(2, 'hsiu', 'hsiu', '我欠你一次。不，兩次。'); Sys.mem('hsiu', '你替阿修顧 release，讓他能去唱歌', 1, 'coverRelease'); } },
+    { t: '「好，我幫你顧。」', fn: (st) => { st.f.releaseOwner = 'player'; st.f.hsiuFree = true; Sys.ch('hsiu', { friend: 6, trust: 5 }); Sys.promise({ id: 'release', who: 'boss', text: '留守 FW 2.3 release（幫阿修顧）', map: 'office', from: at(5, '18:00'), until: at(5, '19:30'), kind: 'meet', auto: false, onBreak: 'releaseBroken' }); later(2, 'hsiu', 'hsiu', '我欠你一次。不，兩次。'); Sys.mem('hsiu', '你替阿修顧 release，讓他能去唱歌', 1, 'coverRelease'); } },
     { t: '「我也有事，抱歉。」', fn: (st) => { st.f.hsiuStuck = true; later(2, 'hsiu', 'hsiu', '……喔。好。沒事。'); } },
     { t: '「你直接跟課長說實話啊。」', fn: (st) => { later(2, 'hsiu', 'hsiu', '說我要去唱情歌？'); Sys.later(60, 'hsiuHonest', {}); } },
   ];
@@ -1056,11 +1059,13 @@
   } });
   Story.finaleLine = function (id) {
     const st = S(), has = (t) => Sys.hasMem(id, t);
+    if (Sys.memsOf(id).filter((m) => m.tone !== 0).length === 0 && !['mira'].includes(id)) return '你這週去哪了？好像都沒看到你。下週……一起吃個飯吧？';
     if (id === 'mira') {
       const d = st.f.miraDecision;
+      if (Sys.memsOf('mira').filter((m) => m.tone !== 0).length === 0) return '這週好像都沒怎麼跟你說到話。' + (st.f.miraDecision === 'go' ? '\n我下個月要去澳洲了。走之前，一起吃頓飯吧。' : '');
       let l = has('kept_test') ? '你週一準時來幫我跑測試的時候，我就知道你是可以信任的人。' : has('madeUp') ? '你那天放我鴿子，但你後來回來補完了。這比較重要。' : st.f.miraWalkaway ? '……我們之間還有一些話沒說完。下週吧。' : has('broke_miraTest') ? '我還記得週一的事喔。只是，記得不等於還在生氣。' : '這週好長。謝謝你在。';
       if (d === 'go') l += '\n下個月我就要走了。你要來機場送我。這是約定。';
-      if (d === 'stay') l += '\n我決定留下來。……你的那句話，有一點點影響。';
+      if (d === 'stay') l += st.f.miraAdvice ? '\n我決定留下來。……你的那句話，有一點點影響。' : '\n我決定留下來。至少現在。';
       return l;
     }
     if (id === 'hsiu') {
@@ -1078,8 +1083,10 @@
       return st.cafe.outcome === 'close' ? '不管在哪裡，只要你們在，我就有地方可以坐。' : '謝謝你這一週。真的。';
     }
     if (id === 'anson') {
+      if (has('broke_ansonFri')) return '週五你說要來幫忙，最後沒來。……沒關係。我那天學到了，可以跟人說「我需要你」。';
       if (st.f.ansonCollapsed) return has('ansonRest') ? '我倒下那天，你來陪我。我第一次覺得，被照顧不是丟臉的事。' : '我這週學到一件事：休息不是偷懶。……說起來簡單。';
       if (has('helped_anson')) return '你那天在廚房幫我切了一百顆水餃的菜。我到現在手都不痠，因為是你切的。';
+      if (has('helped_anson_grade')) return '你幫我對了三個班的考卷答案。那天晚上，我睡了七個小時。';
       return has('group') ? '謝謝你來小組。你說「不記得上次休息是什麼時候」，我一直在想那句話。' : '下週也一起吃飯吧。不用去教會也沒關係。';
     }
     if (id === 'lele') {
@@ -1234,6 +1241,49 @@
       else { Sys.ch(owner, { tension: 4 }); await narr(`${nm(owner)}等了一下，然後走開了。`); }
     } });
   }
+  // skipping work has consequences
+  add({ id: 'absent_work', kind: 'offscreen', once: false, cooldown: 1200, from: '20:30', to: '23:30', cond: (st) => !T.weekend() && T.day() >= 2 && !st.f['v_office_' + T.day()] && !st.f['absentDone_' + T.day()], run: (st) => {
+    st.f['absentDone_' + T.day()] = true;
+    const n = st.f.absentDays = (st.f.absentDays || (st.f.v_office_1 ? 0 : 1)) + 1;
+    st.work.bossTrust -= 5; st.work.warn += n >= 3 ? 1 : 0;
+    if (n === 1) msg('boss', 'boss', '你今天沒進公司？下次請假要先說。');
+    else if (n === 2) msg('boss', 'boss', '今天也沒看到你。有什麼狀況，要說。');
+    else if (n === 3) { msg('hsiu', 'hsiu', '你的 bug 我先幫你接了。課長問起來我說你身體不舒服。……你欠我。'); st.work.hsiuScore += 4; Sys.ch('hsiu', { trust: 2 }, true); }
+    else if (n === 4) { msg('boss', 'boss', '明天早上九點半，來我辦公室一趟。人資也會在。'); st.f.hrTalk = T.day() + 1; }
+    else msg('boss', 'boss', '……');
+    Sys.mem([], `你第 ${n} 天沒去上班`, -1, 'absent', true);
+  } });
+  add({ id: 'hr_talk', kind: 'approach', npc: 'boss', where: 'office', from: '09:00', to: '18:00', prio: 70, cond: (st) => st.f.hrTalk && T.day() >= st.f.hrTalk, run: async (st) => {
+    await say('boss', '坐。');
+    await narr('課長辦公室裡多了一位人資，桌上放著一份你的出勤紀錄。');
+    await say('boss', '這週你有好幾天沒出現。我不是要罵你，我想知道發生了什麼事。');
+    const c = await choose([{ t: '「老實說……我好像有點撐不住了。」', v: 'honest' }, { t: '「家裡有點事。」', v: 'excuse' }, { t: '「我在思考人生。」', v: 'life' }]);
+    if (c === 'honest') { await say('boss', '……謝謝你說實話。公司有諮商資源，下週先排兩天特休。回來之後，我們一起把工作量調整一下。'); st.work.bossTrust += 6; st.work.warn = Math.max(0, st.work.warn - 1); Sys.mood(8); }
+    else if (c === 'excuse') { await say('boss', '好。下次請假要先說。這次記一支警告。'); st.work.warn += 1; }
+    else { await say('boss', '……思考人生很好。在上班時間以外。'); await narr('人資在紀錄上寫了很長一段字。'); st.work.bossTrust -= 4; st.work.legend += 3; }
+    st.f.hrTalk = null; st.f.absentDays = 0;
+  } });
+  add({ id: 'care_setup', kind: 'offscreen', day: [3, 4, 5, 6], from: '18:30', to: '19:30', cond: (st) => {
+    const d = T.day(), out = (dd) => ['office', 'cafe', 'bar', 'church', 'gym', 'studio', 'city'].some((m) => st.f['v_' + m + '_' + dd]);
+    return !out(d) && !out(d - 1) && st.p.map === 'home';
+  }, run: (st) => {
+    const who = ['lele', 'pei', 'anson', 'mira'].filter((id) => id !== st.p.roommate && !SW.Sched.busyAt(id, st.t + 40)).sort((a, b) => st.rel[b].friend - st.rel[a].friend)[0] || 'lele';
+    st.f.careVisitor = who;
+    SW.Sched.override(who, st.t + 25, st.t + 160, 'home', 'center', '來看你', 'care');
+    msg(who, who, { lele: '你已經兩天沒出門了對吧？？我買了鹹酥雞，二十分鐘後到，不准說不。', pei: '你這兩天都沒來店裡……我帶點吃的過去喔。', anson: '我等一下拿點湯過去給你，放門口也可以。', mira: '你兩天沒出房門了。我煮了粥。不要問，吃就對了。' }[who]);
+  } });
+  add({ id: 'care_visit', kind: 'scene', where: 'home', prio: 55, cond: (st) => !!st.f.careVisitor && SW.W.present(st.f.careVisitor), run: async (st) => {
+    const who = st.f.careVisitor; st.f.careVisitor = null;
+    await narr('門鈴響了。');
+    await say(who, { lele: '鹹酥雞外送！還有九層塔！快點吃！', pei: '我做了三明治，還有一杯熱拿鐵。店裡最好的豆子喔。', anson: '我煮了排骨湯。放涼了熱一下就好。', mira: '粥。不要說謝謝，先吃。' }[who]);
+    await say(who, '你這兩天都沒出門。大家……有點擔心。');
+    const c = await choose([{ t: '「我只是有點累。謝謝你來。」', v: 1 }, { t: '「我最近不太想見人……」', v: 2 }, { t: '「我在進行一個很重要的計畫：躺著。」', v: 3 }]);
+    await say(who, c === 1 ? '累了就休息啊。但是休息完，要回來喔。' : c === 2 ? '那我坐在這裡就好，不講話也可以。' : '……很重要的計畫需要補充體力。來，吃。');
+    Sys.energy(20); Sys.mood(12); Sys.ch(who, { friend: 5, comfort: 5, trust: 3 });
+    Sys.mem(who, `你好幾天沒出門，${nm(who)}帶著吃的來看你`, 1, 'careVisit');
+    SW.Sched.clearOv('care');
+  } });
+  add({ id: 'payday', kind: 'phone', day: 5, from: '10:00', run: (st) => { Sys.money(38000); msg('boss', 'boss', '【人資通知】本月薪資已入帳，辛苦了。'); UI.toast('💰 薪水入帳 NT$38,000'); } });
   // a gentle nudge when the player has done nothing all day
   add({ id: 'lazy_check', kind: 'phone', once: false, cooldown: 1400, from: '16:00', to: '17:00', cond: (st) => st.p.map === 'home' && !st.f['v_office_' + T.day()] && !T.weekend() && T.day() <= 7, run: () => {
     const w = U.pick(['lele', 'pei', 'mira']);

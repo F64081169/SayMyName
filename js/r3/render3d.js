@@ -534,8 +534,10 @@
       if (!mdl) continue;
       if (!here) { if (mdl.parent) mdl.parent.remove(mdl); continue; }
       if (mdl.parent !== scene) { scene.add(mdl); mdl.position.set(n.x, 0, n.y); }
-      const dx = n.x - mdl.position.x, dz = n.y - mdl.position.z, mv = Math.hypot(dx, dz);
-      mdl.position.set(n.x, 0, n.y);
+      let ox = 0, oz = 0;
+      for (const o2 of SW.W.npcsHere()) { if (o2 === id) continue; const n2 = S.n[o2]; if (Math.hypot(n2.x - n.x, n2.y - n.y) < 0.45) { const s2 = id < o2 ? -1 : 1; ox += s2 * 0.32; oz += s2 * 0.12; } }
+      const dx = n.x + ox - mdl.position.x, dz = n.y + oz - mdl.position.z, mv = Math.hypot(dx, dz);
+      mdl.position.set(n.x + ox, 0, n.y + oz);
       let targetYaw = mdl.rotation.y;
       if (mv > 0.004) targetYaw = Math.atan2(dx, dz);
       const dp = Math.hypot(p.x - n.x, p.y - n.y);

@@ -41,7 +41,7 @@
           <div class="mg-foot">${help}<button class="btn alt" id="mg-quit">先放棄</button></div>`);
         $('mini-body').querySelectorAll('.code button').forEach((b) => { b.onclick = () => pick(+b.dataset.i); });
         if ($('mg-help')) $('mg-help').onclick = helpMe;
-        $('mg-quit').onclick = () => { close(); resolve({ solved: false, mistakes }); };
+        $('mg-quit').onclick = () => { close(); resolve({ solved: false, mistakes, quit: true }); };
       }
       function pick(i) {
         const s = steps[step];
@@ -107,7 +107,7 @@
         if (Math.random() < 0.18 + skill * 0.02) { notes.push({ t, lane: (lane + U.ri(1, 2)) % 3, hit: null }); }
         t += beat * (Math.random() < 0.3 ? 0.5 : 1);
       }
-      const win = 0.12 + Math.min(skill, 8) * 0.008, perfectW = win * 0.45;
+      const win = (0.12 + Math.min(skill, 8) * 0.008) * (0.9 + SW.S.p.mood / 500), perfectW = win * 0.45;
       const speed = Hh * 0.55; // px per second
       const lineY = Hh - 40;
       let start = null, raf = 0, combo = 0, best = 0, done = false, flash = [0, 0, 0], msg = '';
@@ -169,7 +169,7 @@
     return new Promise((resolve) => {
       const rounds = opt.rounds || 3, labels = opt.labels || [];
       let r = 0, pos = 0, dir = 1, raf = 0, last = null, scores = [], zone = null, lock = false;
-      const zw = U.clamp(opt.zone || 0.16, 0.08, 0.32);
+      const zw = U.clamp((opt.zone || 0.16) * (0.88 + SW.S.p.mood / 420), 0.08, 0.32);
       function newZone() { const c = 0.2 + Math.random() * 0.6; zone = { a: c - zw / 2, b: c + zw / 2, pa: c - zw / 6, pb: c + zw / 6 }; }
       function render() {
         open(`<div class="mg-head"><h3>⏱️ ${U.esc(opt.title || '看準時機')}</h3><span class="muted">${r + 1}／${rounds}</span></div>

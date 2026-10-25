@@ -35,7 +35,7 @@
       if (!$('phone').hidden) { if (k === 'Escape' || k === 'p' || k === 'P') SW.Phone.close(); return; }
       if (!$('title').hidden || UI.busy()) return;
       IN.keys[k.toLowerCase()] = true;
-      if (k === 'e' || k === 'E' || k === 'Enter' || k === ' ') { e.preventDefault(); SW.Sys.interact(W.target); }
+      if ((k === 'e' || k === 'E') && performance.now() - (UI.lastClose || 0) > 350) { e.preventDefault(); SW.Sys.interact(W.target); }
       if (k === 'p' || k === 'P' || k === 'Tab') { e.preventDefault(); IN.release(); SW.Phone.open(); }
       if (k === 'm' || k === 'M') { IN.release(); SW.Phone.open('map'); }
       if (k.startsWith('Arrow')) e.preventDefault();

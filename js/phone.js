@@ -18,6 +18,7 @@
     if (UI.sceneActive && !$('phone').hidden) return;
     $('phone').hidden = false;
     Phone.go(tab || Phone.tab || 'msgs', arg);
+    setTimeout(() => { const b = $('phone-close'); if (b) b.focus(); }, 30);
   };
   Phone.close = function () { $('phone').hidden = true; Phone.viewing = null; SW.save(); };
   Phone.go = function (tab, arg) {
@@ -40,10 +41,11 @@
   // ---------- messages ----------
   Phone.views.msgs = function () {
     const st = S();
-    const threads = Object.keys(st.msgs).sort((a, b) => last(b).t - last(a).t);
+    const waiting = Sys.pendingReplies();
+    const threads = Object.keys(st.msgs).sort((a, b) => (waiting.includes(b) - waiting.includes(a)) || last(b).t - last(a).t);
     function last(th) { const l = st.msgs[th]; return l[l.length - 1]; }
     const contacts = SW.CORE.concat(st.dating.matches || []);
-    const html = `<div class="list">${threads.map((th) => { const l = last(th); return `<button class="row-btn" data-th="${th}">${av(th)}<span class="meta"><b>${U.esc(threadTitle(th))}</b><span>${l.from === 'me' ? '你：' : th === 'group' ? nm(l.from) + '：' : ''}${U.esc(l.text)}</span></span>${st.unread[th] ? '<span class="dot"></span>' : ''}</button>`; }).join('') || '<p class="muted">還沒有訊息。</p>'}</div>
+    const html = `<div class="list">${threads.map((th) => { const l = last(th); return `<button class="row-btn" data-th="${th}">${av(th)}<span class="meta"><b>${U.esc(threadTitle(th))}${waiting.includes(th) ? ' <span class="tag love">待回覆</span>' : ''}</b><span>${l.from === 'me' ? '你：' : th === 'group' ? nm(l.from) + '：' : ''}${U.esc(l.text)}</span></span>${st.unread[th] ? '<span class="dot"></span>' : ''}</button>`; }).join('') || '<p class="muted">還沒有訊息。</p>'}</div>
       <p class="h" style="margin-top:16px">傳訊息給…</p><div class="chips">${contacts.map((id) => `<button data-c="${id}">${U.esc(nm(id))}</button>`).join('')}</div>`;
     main(html, '訊息');
     $('phone-main').querySelectorAll('[data-th]').forEach((b) => { b.onclick = () => Phone.go('thread', b.dataset.th); });
@@ -63,10 +65,13 @@
     html += `</div>`;
     const pend = list.filter((m) => m.rk && !m.rd && SW.R[m.rk]).pop();
     const opts = [];
-    if (pend) { const R = SW.R[pend.rk]; const ro = typeof R === 'function' ? R(st) : R; ro.filter((o) => o.if === undefined || o.if).forEach((o, i) => opts.push({ t: o.t, act: () => replyTo(th, pend, o) })); }
+    if (pend && pend.exp && st.t > pend.exp) {
+      opts.push({ t: '「抱歉，現在才看到……」', act: () => { pend.rd = true; Sys.msg(th, 'me', '抱歉，現在才看到……'); if (SW.CH[th] && SW.CH[th].core) Sys.ch(th, { trust: -1 }, true); Sys.msgLater(2, th, th, SW.Talk.lateSeen(th)); Phone.refresh(); } });
+    } else if (pend) { const R = SW.R[pend.rk]; const ro = typeof R === 'function' ? R(st) : R; ro.filter((o) => o.if === undefined || o.if).forEach((o, i) => opts.push({ t: o.t, act: () => replyTo(th, pend, o) })); }
     if (th !== 'group' && SW.CH[th]) {
       for (const s of (SW.SENDS || [])) if (s.who === th && (!s.cond || s.cond(st))) opts.push({ t: s.t, act: () => { Sys.msg(th, 'me', s.say || s.t); s.run(st); Phone.refresh(); } });
       for (const p of st.prom.filter((p) => p.who === th && p.status === 'pending' && p.from - st.t < 600)) {
+        if (p.kind === 'task') { opts.push({ t: `「抱歉，我可能做不到了」（${SW.tx(p.text)}）`, act: () => cancel(p) }); continue; }
         if (!p.lateSent && st.t < p.until) opts.push({ t: `「抱歉，我會晚一點到」（${SW.tx(p.text)}）`, act: () => late(p) });
         opts.push({ t: `「抱歉，今天沒辦法去了」（${SW.tx(p.text)}）`, act: () => cancel(p) });
       }
@@ -154,7 +159,9 @@
     const pend = st.prom.filter((p) => p.status === 'pending').sort((a, b) => a.from - b.from);
     const done = st.prom.filter((p) => p.status !== 'pending').slice(-10).reverse();
     const events = (SW.EVENTS || []).filter((e) => (!e.known || e.known(st)) && e.at >= T.at(T.day(), '00:00') && e.at > st.t - 60).sort((a, b) => a.at - b.at);
-    const html = `<div class="card-sec"><h4>你答應的事</h4>${pend.length ? `<ul>${pend.map((p) => `<li><b>${p.kind === 'task' ? T.rel(p.until) + ' 前' : T.rel(p.from)}</b> ${U.esc(SW.tx(p.text))}<span class="muted">（${nm(p.who)}・${SW.PLACES[p.map] ? SW.PLACES[p.map].name : ''}）</span></li>`).join('')}</ul><p class="muted">要改期或取消，到「訊息」裡跟對方說一聲，總比直接放鳥好。</p>` : '<p class="muted">目前沒有約定。</p>'}</div>
+    const cf = st.cafe, total = cf.fund + (cf.crowd || 0), need = Math.max(60000, cf.need - (cf.cut || 0));
+    const fundHtml = Sys.knows('player', 'lease') && !cf.outcome ? `<div class="card-sec"><h4>轉角續約進度（你知道的部分）</h4><div style="height:12px;border-radius:6px;background:#e6ede8;overflow:hidden"><i style="display:block;height:100%;width:${Math.min(100, Math.round(total / need * 100))}%;background:#2f8f83"></i></div><p class="muted">已有 ${U.money(total)}／需要約 ${U.money(need)}。房東的態度、合作機會、小沛自己想不想留下，也一樣重要。</p></div>` : '';
+    const html = fundHtml + `<div class="card-sec"><h4>你答應的事</h4>${pend.length ? `<ul>${pend.map((p) => `<li><b>${p.kind === 'task' ? T.rel(p.until) + ' 前' : T.rel(p.from)}</b> ${U.esc(SW.tx(p.text))}<span class="muted">（${nm(p.who)}・${SW.PLACES[p.map] ? SW.PLACES[p.map].name : ''}）</span></li>`).join('')}</ul><p class="muted">要改期或取消，到「訊息」裡跟對方說一聲，總比直接放鳥好。</p>` : '<p class="muted">目前沒有約定。</p>'}</div>
       ${events.length ? `<div class="card-sec"><h4>你知道的活動</h4><ul>${events.map((e) => `<li><b>${T.rel(e.at)}</b> ${U.esc(e.text)}</li>`).join('')}</ul></div>` : ''}
       ${done.length ? `<div class="card-sec"><h4>過去的約定</h4><ul>${done.map((p) => `<li>${{ kept: '✅', broken: '💔', cancelled: '↩️' }[p.status]} ${U.esc(SW.tx(p.text))}</li>`).join('')}</ul></div>` : ''}`;
     main(html, '行程');
@@ -168,11 +175,22 @@
       <button class="row-btn" data-a="invest"><span class="av" style="background:#6fb7de">📈</span><span class="meta"><b>小資投</b><span>竹科指數 ETF</span></span></button>
       <button class="row-btn" data-a="bag"><span class="av" style="background:#f2b33d">🎒</span><span class="meta"><b>包包</b><span>你的物品</span></span></button>
       <button class="row-btn" data-a="cats"><span class="av" style="background:#e39a4a">🐈</span><span class="meta"><b>街貓圖鑑</b><span>${Object.keys(SW.S.f.cats || {}).length}／8 隻</span></span></button>
+      <button class="row-btn" data-a="wait"><span class="av" style="background:#6fb7de">⏳</span><span class="meta"><b>等一下</b><span>讓時間過去</span></span></button>
       <button class="row-btn" data-a="settings"><span class="av" style="background:#5d6e78">⚙️</span><span class="meta"><b>設定</b><span>存檔、重新開始</span></span></button>
       <button class="row-btn" data-a="help"><span class="av" style="background:#22323b">❓</span><span class="meta"><b>操作說明</b><span>怎麼玩</span></span></button>
     </div>`;
     main(html, 'App');
     $('phone-main').querySelectorAll('[data-a]').forEach((b) => { b.onclick = () => Phone.go(b.dataset.a); });
+  };
+  Phone.views.wait = function () {
+    const st = S();
+    const next = st.prom.filter((p) => p.status === 'pending' && p.from > st.t + 10).sort((a, b) => a.from - b.from)[0];
+    const html = `<p class="muted">時間會照常流動：有人來找你、或有大事發生時會停下來。</p><div class="list">
+      <button class="row-btn" data-w="30"><span class="av" style="background:#e6ede8">⏳</span><span class="meta"><b>等 30 分鐘</b></span></button>
+      <button class="row-btn" data-w="60"><span class="av" style="background:#e6ede8">⏳</span><span class="meta"><b>等 1 小時</b></span></button>
+      ${next ? `<button class="row-btn" data-w="${next.from - 10 - st.t}"><span class="av" style="background:#e6ede8">⏰</span><span class="meta"><b>等到下一個約定前</b><span>${U.esc(SW.tx(next.text))}（${T.rel(next.from)}）</span></span></button>` : ''}</div>`;
+    main(html, '等一下', () => Phone.go('more'));
+    $('phone-main').querySelectorAll('[data-w]').forEach((b) => { b.onclick = async () => { const mins = Math.max(5, Math.round(+b.dataset.w)); Phone.close(); await Sys.advance(mins, `⏳ 你等了一下……`); SW.Dir.tick(); }; });
   };
   Phone.views.cats = function () {
     const st = S(), got = st.f.cats || {};
@@ -245,7 +263,7 @@
   Phone.views.settings = function () {
     const html = `<div class="card-sec"><h4>存檔</h4><p class="muted">遊戲會自動存在這個瀏覽器裡（每小時、換場景、事件結束時）。</p><button class="btn" id="st-save" style="width:100%">立即存檔</button></div>
       <div class="card-sec"><h4>文字</h4><button class="btn alt" id="st-fast" style="width:100%">${SW.fastText ? '✅ ' : ''}對話直接顯示（不逐字）</button></div>
-      <div class="card-sec"><h4>時間流速</h4><div class="chips">${[[0.6, '慢'], [1, '標準'], [1.6, '快']].map(([v, l]) => `<button data-sp="${v}" class="${SW.timeScale === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+      <div class="card-sec"><h4>時間流速</h4><div class="chips">${[[0.55, '慢'], [0.85, '標準'], [1.4, '快']].map(([v, l]) => `<button data-sp="${v}" class="${SW.timeScale === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       <div class="card-sec"><h4>重新開始</h4><p class="muted">會刪除目前的存檔，回到角色建立畫面。</p><button class="btn warn" id="st-reset" style="width:100%">刪除存檔並重新開始</button><div id="st-confirm"></div></div>`;
     main(html, '設定', () => Phone.go('more'));
     $('st-save').onclick = () => { SW.save(true); UI.toast('💾 已存檔'); };

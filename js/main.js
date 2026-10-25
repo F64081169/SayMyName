@@ -3,7 +3,7 @@
   const U = SW.U, T = SW.T, UI = SW.UI, W = SW.W, Sys = SW.Sys;
   const $ = (id) => document.getElementById(id);
   const Main = SW.Main = {};
-  SW.timeScale = 1;
+  SW.timeScale = 0.85;
   try { SW.fastText = localStorage.getItem('sw-fast') === '1'; } catch (e) { SW.fastText = false; }
 
   const HAIR = ['#1d1c24', '#4a2f22', '#7a3b22', '#c9a063', '#c94f86', '#3f5f8f', '#e8e3d8'];
@@ -42,11 +42,13 @@
       <div class="t-btns">
         ${save ? `<button class="btn primary" id="t-cont">繼續：${U.esc(save.p.name)}・${T.DAYS[(Math.floor(save.t / 1440)) % 7]} ${U.fmt(save.t % 1440)}</button>` : ''}
         <button class="btn ${save ? 'alt' : 'primary'}" id="t-new">${save ? '開始新的人生（會覆蓋存檔）' : '開始新的人生'}</button>
+        ${save ? '' : '<button class="btn alt" id="t-quick">用預設角色直接開始（Shannon・獨居）</button>'}
       </div>
       <p class="t-note">支援電腦與手機瀏覽器。電腦用 WASD／方向鍵移動、E 互動、P 打開手機；手機拖曳畫面移動、點擊互動。遊戲會自動存在這個瀏覽器裡。<br>所有公司、人物與事件皆為虛構。</p>
     </div>`;
     if (save) $('t-cont').onclick = () => Main.start(save);
     $('t-new').onclick = () => Main.create();
+    if ($('t-quick')) $('t-quick').onclick = () => Main.start(SW.newState({ name: 'Shannon', pron: '她', bg: 'engineer', housing: 'solo', look: { hair: '#1d1c24', style: 'long', skin: '#f6d6bd', outfit: '#f2b33d', acc: 'none' } }), true);
   };
 
   Main.create = function () {
@@ -93,8 +95,8 @@
     W.reset();
     $('title').hidden = true; $('hud').hidden = false;
     if (fresh) {
-      const [x, y] = W.spot('home', 'bed');
-      S.p.map = 'home'; S.p.x = x + 0.5; S.p.y = y + 0.5; S.p.dir = 'down';
+      const [x, y] = W.spot('home', 'center');
+      S.p.map = 'home'; S.p.x = x + 0.5; S.p.y = y + 0.5; S.p.dir = 'down'; S.p.yaw = Math.PI;
     }
     W.updateNPCs(0, true);
     if (S.p.yaw === undefined) S.p.yaw = { up: 0, down: Math.PI, left: Math.PI / 2, right: -Math.PI / 2 }[S.p.dir] || 0;
@@ -103,7 +105,8 @@
     $('minimap').hidden = false; $('crosshair').hidden = false;
     SW.save(true);
     if (!Main.loopOn) { Main.loopOn = true; requestAnimationFrame(loop); }
-    setTimeout(async () => { await SW.Dir.episodeCard(); SW.Dir.tick(); }, 200);
+    Main.booting = true;
+    setTimeout(async () => { await SW.Dir.episodeCard(); Main.booting = false; SW.Dir.tick(); if (fresh) setTimeout(() => SW.UI.toast(SW.R3.mobile ? '👆 左半邊拖曳移動・右半邊拖曳轉頭・點人或東西互動' : '⌨️ WASD 移動・滑鼠轉頭（點畫面鎖定）・E 互動・P 手機・M 地圖'), 600); }, 60);
   };
 
   let last = 0, dirT = 0, exT = 0;
@@ -125,7 +128,7 @@
           W.movePlayer(-Math.sin(yaw) * f + Math.cos(yaw) * s, -Math.cos(yaw) * f - Math.sin(yaw) * s, dt);
         }
         S.p.yaw = (S.p.yaw || 0) + SW.IN.turn() * dt * 2.2;
-        dirT -= dt; if (dirT <= 0) { dirT = 0.5; SW.Dir.tick(); }
+        dirT -= dt; if (dirT <= 0 && !Main.booting) { dirT = 0.5; SW.Dir.tick(); }
         exT -= dt; if (exT <= 0) { exT = 2; Sys.checkExhaust(); }
       } else {
         S.p.moving = false;

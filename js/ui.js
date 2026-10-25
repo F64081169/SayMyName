@@ -62,7 +62,7 @@
       UI._choiceRes = (i) => { const o = opts[i]; if (!o || o.dis) return; box.innerHTML = ''; UI._choiceRes = null; res(o.v !== undefined ? o.v : i); };
     });
   };
-  UI.closeDialog = () => { $('dialog').hidden = true; $('dlg-choices').innerHTML = ''; advance = null; if (SW.R3) SW.R3.focus(null); };
+  UI.closeDialog = () => { $('dialog').hidden = true; $('dlg-choices').innerHTML = ''; advance = null; UI.lastClose = performance.now(); if (SW.R3) SW.R3.focus(null); };
   UI.dialogTap = function () {
     if (finishTyping()) return;
     if (advance) { const a = advance; advance = null; a(); }
@@ -79,7 +79,7 @@
         const b = document.createElement('button'); b.className = 'sitem' + (it.hot ? ' hot' : '');
         b.innerHTML = `<span class="ic">${it.icon || '•'}</span><span class="tx"><b>${U.esc(SW.tx(it.t))}</b>${it.sub ? `<span>${U.esc(SW.tx(it.sub))}</span>` : ''}</span>`;
         if (it.dis) { b.disabled = true; if (it.why) b.title = it.why; }
-        b.onclick = () => { UI.closeSheet(); res(it.v); };
+        b.onclick = () => { UI.closeSheet(); UI.lastClose = performance.now(); res(it.v); };
         box.appendChild(b);
       });
       $('sheet').hidden = false;
@@ -89,13 +89,21 @@
   UI.closeSheet = function (cancel) { $('sheet').hidden = true; if (cancel && sheetRes) { const r = sheetRes; sheetRes = null; r(null); } sheetRes = null; };
 
   // ---------- toasts ----------
+  // incoming messages collapse into one "N new messages" toast
+  let msgToastEl = null, msgToastN = 0, msgToastTimer = null;
+  UI.msgToast = function (text) {
+    if (!$('phone').hidden) return;
+    msgToastN++;
+    if (msgToastEl && msgToastEl.isConnected) { msgToastEl.textContent = `📱 ${msgToastN} 則新訊息（點右上角手機）`; clearTimeout(msgToastTimer); msgToastTimer = setTimeout(() => { msgToastN = 0; }, 3600); return; }
+    msgToastN = 1; msgToastEl = UI.toast(text); msgToastTimer = setTimeout(() => { msgToastN = 0; }, 3600);
+  };
   UI.toast = function (text, cls) {
-    if (!$('phone').hidden && /^💬/.test(text)) return;
     const box = $('toasts');
-    while (box.children.length > 3) box.removeChild(box.firstChild);
+    while (box.children.length > 1) box.removeChild(box.firstChild);
     const el = document.createElement('div'); el.className = 'toast ' + (cls || ''); el.textContent = SW.tx(text);
     box.appendChild(el);
     setTimeout(() => { el.style.transition = 'opacity .4s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 450); }, 3400);
+    return el;
   };
 
   // ---------- cards ----------
@@ -132,6 +140,13 @@
     const unread = Object.values(S.unread).reduce((a, b) => a + b, 0);
     $('phone-badge').hidden = !unread; $('phone-badge').textContent = unread;
     UI.objective();
+    const gd = $('guide'), g = !UI.busy() && SW.S.p ? SW.Sys.guide() : null;
+    if (g) {
+      const p = SW.S.p, dx = g.x - p.x, dy = g.y - p.y, dist = Math.hypot(dx, dy);
+      const bearing = Math.atan2(-dx, -dy); let rel = bearing - (p.yaw || 0); while (rel > Math.PI) rel -= Math.PI * 2; while (rel < -Math.PI) rel += Math.PI * 2;
+      gd.innerHTML = `<span class="arrow" style="transform:rotate(${-rel}rad)">⬆</span><span>${U.esc(g.label)}・${Math.round(dist)}m</span>`;
+      gd.hidden = dist < 2;
+    } else gd.hidden = true;
     // act button
     const tg = SW.W.target, btn = $('btn-act');
     if (tg && !UI.busy()) {

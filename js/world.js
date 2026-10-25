@@ -93,13 +93,13 @@
       W.enter(b.map, sx + 0.5, sy + 0.5, 'up');
     } else {
       const b = W.building(m.id);
-      W.enter('city', b.door[0] + 0.5, b.door[1] + 1.5, 'down');
+      W.enter('city', b.door[0] + 0.5, b.door[1] + 2.4, 'down');
     }
   };
 
   // fast travel (phone map / YouBike): costs game time, lands you just inside
   W.travelTo = function (mapId) {
-    if (mapId === 'city') { const b = W.building(SW.S.p.map); if (b) W.enter('city', b.door[0] + 0.5, b.door[1] + 1.5, 'down'); return; }
+    if (mapId === 'city') { const b = W.building(SW.S.p.map); if (b) W.enter('city', b.door[0] + 0.5, b.door[1] + 2.4, 'down'); return; }
     const [sx, sy] = W.entrySpawn(mapId);
     W.enter(mapId, sx + 0.5, sy + 0.5, 'up');
   };

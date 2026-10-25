@@ -631,7 +631,7 @@
     });
     Sys.npcCh('anson', { energy: kind === 'grade' ? 12 : 22 });
     Sys.ch('anson', { friend: 4, trust: 3, comfort: 3 });
-    Sys.mem('anson', kind === 'grade' ? '你幫安森改考卷' : '你在教會廚房幫安森備餐', 1, 'helped_anson');
+    Sys.mem('anson', kind === 'grade' ? '你幫安森改考卷' : '你在教會廚房幫安森備餐', 1, kind === 'grade' ? 'helped_anson_grade' : 'helped_anson');
     S().stats.helped++; Sys.energy(kind === 'grade' ? -4 : -10);
   };
   Acts.helpLele = async function () {
@@ -643,7 +643,9 @@
         await say('lele', '標題我想了三個：「救救轉角」、「我們還有地方可以坐嗎？」、「小沛的拿鐵不能沒有你」。你選！');
         const v = await choose([{ t: '「我們還有地方可以坐嗎？」', v: 'seat' }, { t: '「救救轉角」', v: 'save' }, { t: '「小沛的拿鐵不能沒有你」', v: 'latte' }]);
         await say('lele', v === 'seat' ? '……這個好。很像我們。我要哭了。' : v === 'save' ? '直白！有力！行銷之神點頭！' : '哈哈哈哈好啦這個會紅。');
-        st.cafe.crowd += v === 'seat' ? 15000 : 9000;
+        st.f.crowdHelps = (st.f.crowdHelps || 0) + 1;
+        const mult = [1, 0.4, 0.2, 0.1][Math.min(3, st.f.crowdHelps - 1)];
+        st.cafe.crowd += Math.round((v === 'seat' ? 15000 : 9000) * mult);
         await Sys.advance(45, '⏳ 你們把募資頁面改到第七版……');
       } else {
         await say('lele', '你知道最慘的是什麼嗎？不是分手。是我還記得他咖啡要幾分糖。');

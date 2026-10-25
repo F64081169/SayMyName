@@ -146,24 +146,28 @@
         Sys.keep(p.id);
         continue;
       }
-      if (st.t > p.until) Sys.breakP(p.id);
+      if (st.t > p.until) { Sys.breakP(p.id); continue; }
+      if (!p.reminded && p.kind === 'meet' && st.t >= p.from - 30 && st.t < p.from && st.p.map !== p.map) { p.reminded = true; UI.toast(`⏰ 30 分鐘後：${SW.tx(p.text)}（${(SW.PLACES[p.map] || {}).name || ''}）`, 'warn'); }
+      if (!p.reminded && p.kind === 'task' && st.t >= p.until - 30 && st.t < p.until) { p.reminded = true; UI.toast(`⏰ 快到期了：${SW.tx(p.text)}`, 'warn'); }
     }
   };
 
   // ---------- messages ----------
   Sys.msg = function (thread, from, text, opt) {
     const st = S(); opt = opt || {};
-    (st.msgs[thread] = st.msgs[thread] || []).push({ from, text: SW.tx(text), t: st.t, rk: opt.reply || null, rd: false });
+    (st.msgs[thread] = st.msgs[thread] || []).push({ from, text: SW.tx(text), t: st.t, rk: opt.reply || null, rd: false, exp: opt.exp || null });
     if (from !== 'me' && !(SW.Phone && SW.Phone.viewing === thread)) {
-      st.unread[thread] = (st.unread[thread] || 0) + 1;
-      if (!opt.silent) UI.toast(`💬 ${Sys.threadName(thread, from)}：${SW.tx(text).slice(0, 22)}${text.length > 22 ? '…' : ''}`);
+      if (!opt.silent) st.unread[thread] = (st.unread[thread] || 0) + 1;
+      if (!opt.silent) UI.msgToast(`💬 ${Sys.threadName(thread, from)}：${SW.tx(text).slice(0, 22)}${text.length > 22 ? '…' : ''}`);
       try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) { /* no vibration */ }
     }
     if (SW.Phone && SW.Phone.refresh) SW.Phone.refresh();
   };
   Sys.threadName = (thread, from) => thread === 'group' ? `轉角老位子・${nm(from)}` : nm(from);
-  Sys.msgLater = (mins, thread, from, text, reply) => Sys.later(mins, 'msg', { thread, from, text, reply });
-  H.msg = (d) => Sys.msg(d.thread, d.from, d.text, { reply: d.reply });
+  Sys.msgLater = (mins, thread, from, text, reply, expMins) => Sys.later(mins, 'msg', { thread, from, text, reply, exp: expMins ? S().t + mins + expMins : null });
+  H.msg = (d) => Sys.msg(d.thread, d.from, d.text, { reply: d.reply, exp: d.exp, silent: d.silent });
+  // messages that still wait for a reply (not expired)
+  Sys.pendingReplies = () => { const st = S(), out = []; for (const th of Object.keys(st.msgs)) { const l = st.msgs[th].filter((m) => m.rk && !m.rd); const m = l[l.length - 1]; if (m && (!m.exp || st.t <= m.exp)) out.push(th); } return out; };
 
   // ---------- queue ----------
   Sys.later = (mins, k, d) => S().q.push({ at: S().t + mins, k, d: d || {} });
@@ -223,8 +227,8 @@
   };
 
   // advance game time in 5 minute steps, letting the offscreen world run
-  Sys.advance = async function (mins, label) {
-    const st = S();
+  Sys.advance = async function (mins, label, opts) {
+    const st = S(); opts = opts || {};
     if (label !== false) { SW.$('fade-text').textContent = label || `⏳ ${mins >= 60 ? (mins / 60).toFixed(mins % 60 ? 1 : 0) + ' 小時' : mins + ' 分鐘'}過去了…`; SW.$('fade').hidden = false; }
     const startDay = T.day();
     let left = mins;
@@ -234,6 +238,7 @@
       Sys.tick(step, true);
       if (SW.Dir) SW.Dir.tick({ offscreenOnly: true });
       if (T.day() !== startDay && T.mod() < step) Sys.dayStart();
+      if (opts.interrupt !== false && SW.Dir && SW.Dir.urgent()) { if (left > 10) UI.toast('⏸️ 有事情正在發生……'); break; }
     }
     SW.W.updateNPCs(0, true);
     if (label !== false) { await U.sleep(650); SW.$('fade').hidden = true; }
@@ -277,7 +282,7 @@
       } else {
         // collapsing in daytime costs a few hours, never a whole day
         await UI.fade('你的體力見底，眼前一黑……', 1300);
-        await Sys.advance(150, '💤 你在原地睡著了……');
+        await Sys.advance(150, '💤 你在原地睡著了……', { interrupt: false });
         st.p.energy = 35;
         UI.toast(`你在${(SW.PLACES[where] || {}).name || '這裡'}睡了兩個半小時。有人在你身上蓋了一件外套。`, 'warn');
       }
@@ -290,7 +295,7 @@
     let target = T.today(hm); if (target <= st.t + 60) target += 1440;
     const mins = target - st.t;
     if (st.p.follower) { st.p.follower = null; }
-    await Sys.advance(mins, collapsed ? false : '🌙 晚安……');
+    await Sys.advance(mins, collapsed ? false : '🌙 晚安……', { interrupt: false });
     st.p.energy = collapsed ? 60 : U.clamp(70 + mins / 15 + (st.p.restBonus ? 10 : 0), 0, 100);
     Sys.mood(collapsed ? -5 : 5);
     const [x, y] = SW.W.spot('home', 'bed');
@@ -370,9 +375,24 @@
   Sys.objectives = function () {
     const st = S(), out = [];
     const pend = st.prom.filter((p) => p.status === 'pending' && p.until >= st.t && p.kind !== 'secret').sort((a, b) => (a.kind === 'task' ? a.until : a.from) - (b.kind === 'task' ? b.until : b.from)).slice(0, 3);
-    for (const p of pend) { const t = p.kind === 'task' ? p.until : p.from; out.push(`⏰ <b>${p.kind === 'task' ? '～' : ''}${U.fmt(t % 1440)}</b>${Math.floor(t / 1440) + 1 !== T.day() ? '（' + T.dayName(Math.floor(t / 1440) + 1) + '）' : ''} ${U.esc(SW.tx(p.text))}`); }
+    for (const p of pend) {
+      const t = p.kind === 'task' ? p.until : p.from, day = Math.floor(t / 1440) + 1;
+      const when = p.kind === 'task' ? (p.from > st.t + 5 ? `${U.fmt(p.from % 1440)}–${U.fmt(p.until % 1440)}` : `${U.fmt(p.until % 1440)} 前`) : U.fmt(p.from % 1440);
+      out.push(`⏰ <b>${when}</b>${day !== T.day() ? '（' + T.dayName(day) + '）' : ''} ${U.esc(SW.tx(p.text))}`);
+    }
     if (SW.Dir) for (const h of SW.Dir.hints()) if (out.length < 4) out.push(h);
     return out;
+  };
+
+  // ---------- guide pointer ----------
+  Sys.guide = function () {
+    const st = S(), g = SW.Dir && SW.Dir.goal(); if (!g) return null;
+    const here = st.p.map;
+    if (g.map === here && here !== 'city') return null;
+    if (here !== 'city') { const m = SW.W.get(here), d = m.doors[0]; return { x: d.x + 0.5, y: d.y + 0.5, label: '先出門・' + g.label }; }
+    if (g.map === 'city') { const sp = SW.W.spot('city', g.spot); return sp ? { x: sp[0] + 0.5, y: sp[1] + 0.5, label: g.label } : null; }
+    const b = SW.W.building(g.map); if (!b) return null;
+    return { x: b.door[0] + 0.5, y: b.door[1] + 1, label: (SW.PLACES[g.map] || {}).name + '・' + g.label };
   };
 
   // ---------- shop ----------
