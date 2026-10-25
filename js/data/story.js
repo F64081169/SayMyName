@@ -183,6 +183,7 @@
 
   // ---------- the party ----------
   async function partyCore(st, late) {
+    const pk = Sys.pending('party'); if (pk) { pk.status = 'kept'; pk.done = st.t; st.stats.kept++; pk.late = late; }
     const spoiled = st.f.partySpoiled;
     const fol = st.p.follower;
     if (!late) {
@@ -205,7 +206,7 @@
     } else {
       await narr('你推開好日子的門。長桌上的蛋糕只剩一半，蠟燭已經吹熄了。');
       const p = Sys.prom('party');
-      if (p && !p.lateSent) { await say('mira', '……你來了。', '😑'); Sys.ch('mira', { trust: -3, tension: 4 }, true); }
+      if (p && p.who === 'mira' && !p.lateSent) { await say('mira', '……你來了。', '😑'); Sys.ch('mira', { trust: -3, tension: 4 }, true); }
       else await say('mira', '來了就好。坐。');
       await say('pei', '{N}！你來了！我還以為你被 Bug 吃掉了！');
     }
@@ -265,7 +266,6 @@
     }
     await wait(Math.max(30, at(1, '21:30') - st.t), '🎂 派對一路熱鬧到十點……');
     st.f.partyDone = late ? 'late' : 'ontime';
-    const pp = Sys.pending('party'); if (pp) { pp.status = 'kept'; st.stats.kept++; }
     const who = SW.CORE.filter((id) => id !== 'pei' || true);
     Sys.mem(who, late ? '一起幫小沛過生日（你遲到了）' : '一起幫小沛過了二十五歲生日', 1, 'party');
     for (const id of SW.CORE) Sys.ch(id, { friend: late ? 1 : 3, comfort: 2 }, true);
@@ -586,6 +586,7 @@
   };
 
   add({ id: 'd4_group', kind: 'scene', day: 4, where: 'church', from: '19:15', to: '21:30', cast: ['anson'], prio: 60, run: async (st) => {
+    const gp = Sys.pending('group'); if (gp) { gp.status = 'kept'; gp.done = st.t; st.stats.kept++; }
     await narr('光鹽教會的小組教室。七八個人圍著一張桌子，桌上有一壺高山茶和一盒餅乾。');
     await say('anson', '歡迎！今天的主題是「安息」。');
     await say('pastor', '有人說休息是為了走更長遠的路。但聖經裡的安息，比較像是——承認自己不是神。');
@@ -609,7 +610,6 @@
       const w = await choose([{ t: '「好，我試試看。」', v: 1 }, { t: '「我不太適合，抱歉。」', v: 0 }]);
       if (w) { st.f.worshipAsk = true; Sys.promise({ id: 'worship', who: 'anson', text: '週日 10:00 主日幫忙彈吉他', map: 'church', from: at(7, '10:00'), until: at(7, '11:00'), kind: 'meet', auto: false, weight: 8 }); }
     }
-    const gp = Sys.pending('group'); if (gp) { gp.status = 'kept'; st.stats.kept++; }
     st.stats.church++;
     Sys.mem('anson', '你參加了週四的小組，主題是「安息」', 1, 'group');
     await wait(90, '⏳ 小組結束時，茶壺空了，餅乾也空了……');
@@ -694,6 +694,7 @@
   H.hsiuHonest = () => { const st = S(); st.f.hsiuFree = true; st.f.releaseOwner = 'boss'; msg('hsiu', 'hsiu', '我跟課長說了。他沉默了十秒，然後說：「我年輕的時候也唱過。去吧。」……我們課長是不是被掉包了。'); };
 
   add({ id: 'd5_release', kind: 'scene', day: 5, where: 'office', from: '17:45', to: '19:30', prio: 80, cond: (st) => st.f.releaseOwner === 'player' && !st.f.releaseDone, run: async (st) => {
+    const rp = Sys.pending('release'); if (rp) { rp.status = 'kept'; rp.done = st.t; st.stats.kept++; }
     await say('boss', '來了。斷電測試第 97 次失敗。我們有一個 blocker。');
     const partner = here('hsiu') && !st.f.hsiuFree ? 'hsiu' : null;
     const r = await SW.MG.debug('release', { partner, title: 'FW 2.3 Release Blocker' });
@@ -702,7 +703,6 @@
       await say('boss', '……綠了。全部綠了。');
       await say('boss', '你今天救了這個 release。');
       st.work.bossTrust += 8; st.work.perf += 4; st.f.releaseDone = 'player';
-      const p = Sys.pending('release'); if (p) { p.status = 'kept'; st.stats.kept++; }
       Sys.mem([], '你在週五晚上救了 FW 2.3 的 release', 1, 'release', true);
       const c = await choose([{ t: '趕去轉角（還來得及聽 Live 的後半）', v: 'go' }, { t: '留下來陪課長跑完最後的驗證', v: 'stay' }]);
       if (c === 'go') { await wait(10, '🏃 你一路衝向轉角……'); SW.W.travelTo('cafe'); }
@@ -711,7 +711,6 @@
       await wait(150, '⏳ 你試了所有方法……');
       await say('boss', '……我來接手。你先回去吧。');
       st.work.bossTrust -= 4; st.f.releaseDone = 'boss';
-      const p = Sys.pending('release'); if (p) { p.status = 'kept'; st.stats.kept++; }
     }
   } });
   add({ id: 'd5_release_hsiu', kind: 'offscreen', day: 5, from: '18:00', cond: (st) => st.f.releaseOwner === 'hsiu' && !st.f.hsiuFree, run: (st) => {
@@ -949,13 +948,14 @@
   // DAY 7 — 週日・第一週完結
   // =====================================================================
   add({ id: 'd7_service', kind: 'scene', day: 7, where: 'church', from: '09:45', to: '12:00', prio: 70, run: async (st) => {
+    const wpp = Sys.pending('worship'); if (wpp) { wpp.status = 'kept'; wpp.done = st.t; st.stats.kept++; }
     await narr('主日。陽光從彩色玻璃斜斜地照進來。後面有一壺咖啡，還有一盤阿姨做的蘿蔔糕。');
     if (st.f.ansonCollapsed) { await narr('安森坐在第三排。不是在台上，是在台下。'); await say('anson', '牧師說我這週只准坐著。……原來坐在這裡是這種感覺。'); }
     if (st.f.worshipAsk) {
       await say('anson', '{N}！你來了！第二首是你。');
       const r = await SW.MG.rhythm({ title: '主日詩歌〈在這安靜時刻〉', len: 18, slow: true });
       await narr(r.score > 60 ? '吉他聲很安靜，像有人輕輕拍著你的背。' : '你彈錯了幾個音，但會眾唱得很大聲，把你蓋過去了。');
-      Sys.ch('anson', { friend: 6, trust: 4 }); const wp = Sys.pending('worship'); if (wp) { wp.status = 'kept'; st.stats.kept++; }
+      Sys.ch('anson', { friend: 6, trust: 4 });
       Sys.mem('anson', '你在主日幫忙彈吉他', 1, 'worship');
     }
     await say('pastor', '今天不講很長。只想說一句：你不需要先成為很厲害的人，才配得到休息。');
@@ -1143,8 +1143,8 @@
   // =====================================================================
   add({ id: 'd8_feature', kind: 'approach', npc: 'boss', day: [8, 9, 10], where: 'office', prio: 60, run: async (st) => {
     const W = st.work;
-    const me2 = W.perf * 2 + W.bossTrust * 0.5 + (st.f.releaseDone === 'player' ? 10 : 0) + (st.f.releaseOwner === 'auto' ? 8 : 0) - W.warn * 6;
-    const hs = W.hsiuScore + (st.f.hsiuSupport ? 8 : 0) + (st.f.releaseOwner === 'hsiu' ? 10 : 0);
+    const me2 = W.perf * 3 + W.bossTrust * 0.6 + W.bugsDone.length * 3 + (st.f.releaseDone === 'player' ? 12 : 0) + (st.f.releaseOwner === 'auto' ? 10 : 0) - W.warn * 8 - Math.max(0, W.legend - 8);
+    const hs = W.hsiuScore - 10 + (st.f.hsiuSupport ? 10 : 0) + (st.f.releaseOwner === 'hsiu' ? 12 : 0);
     const win = me2 >= hs;
     st.f.featureOwner = win ? 'player' : 'hsiu';
     await say('boss', '我宣布一下。這一季的 Feature Owner——');

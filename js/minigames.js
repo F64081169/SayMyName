@@ -27,6 +27,7 @@
       let note = '';
       function render() {
         const s = steps[step];
+        MG._cur = { pid, step };
         const isFix = s.key === 'fix';
         const list = s.items.map((t, i) => {
           const cls = gone[step].has(i) ? 'gone' : wrongPicked[step].has(i) ? 'bad' : '';
@@ -120,6 +121,7 @@
         else { combo = 0; msg = 'Miss'; }
       }
       function frame() {
+        if (done || !$('rh-stat')) return;
         const now = (performance.now() - start) / 1000;
         g.clearRect(0, 0, W, Hh);
         const lw = W / 3;
@@ -157,7 +159,7 @@
       $('rh-skip').onclick = () => finish(true);
       const map = { a: 0, s: 1, d: 2, j: 0, k: 1, l: 2, ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2, 1: 0, 2: 1, 3: 2 };
       keyHandler = (e) => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; if (map[k] !== undefined) { e.preventDefault(); hit(map[k]); } };
-      setTimeout(() => { start = performance.now(); raf = requestAnimationFrame(frame); }, 400);
+      setTimeout(() => { if (done) return; start = performance.now(); raf = requestAnimationFrame(frame); }, 400);
     });
   };
 

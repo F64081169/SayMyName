@@ -187,7 +187,9 @@
   let lastHour = null;
   Sys.tick = function (mins, instant) {
     const st = S();
-    st.p.energy = U.clamp(st.p.energy - mins / 12, 0, 100);
+    const before = st.p.energy;
+    st.p.energy = U.clamp(st.p.energy - mins / 16, 0, 100);
+    if (before > 15 && st.p.energy <= 15 && !instant) UI.toast('🥱 你好累。吃點東西、喝杯咖啡，或回家睡覺吧。', 'warn');
     for (const id of SW.CORE) { const n = st.n[id]; n.mood += (60 - n.mood) * 0.002 * mins; }
     SW.W.updateNPCs(mins, instant);
     Sys.processQueue();
@@ -208,8 +210,8 @@
       if (k === 'anson|pei') Sys.pch('anson', 'pei', { attract: 0.3 });
     }
     // Anson burns energy every hour he is "helping"
-    const an = st.n.anson; if (/準備|布置|帶小組|改作業|服事/.test(an.act)) an.energy = U.clamp(an.energy - 2.5, 0, 100);
-    if (T.mod() >= 23 * 60 || T.mod() < 6 * 60) { for (const id of SW.CORE) st.n[id].energy = U.clamp(st.n[id].energy + (id === 'anson' ? 2 : 6), 0, 100); }
+    const an = st.n.anson; if (/準備|布置|帶小組|改作業|服事|上課/.test(an.act)) an.energy = U.clamp(an.energy - (/上課/.test(an.act) ? 0.4 : 3.2), 0, 100);
+    if (T.mod() >= 23 * 60 || T.mod() < 6 * 60) { for (const id of SW.CORE) st.n[id].energy = U.clamp(st.n[id].energy + (id === 'anson' ? 0.7 : 6), 0, 100); }
     if (SW.save) SW.save();
   };
   Sys.dayStart = function () {
@@ -263,15 +265,24 @@
   Sys.checkExhaust = async function () {
     const st = S(), m = T.mod();
     if (UI.busy()) return;
-    if ((m >= 90 && m < 360) || st.p.energy <= 0) {
-      UI.sceneActive = true;
-      await UI.fade(st.p.energy <= 0 ? '你的體力見底，眼前一黑……' : '凌晨了。你撐不住，直接睡著了……', 1300);
-      const where = st.p.map;
-      await Sys.sleepUntil('09:30', true);
-      UI.sceneActive = false;
-      UI.toast(where === 'home' ? '你在沙發上醒來，脖子很痠。' : `你在${(SW.PLACES[where] || {}).name || '外面'}睡著了，被好心人叫醒後搖搖晃晃回家。`, 'warn');
+    const late = m >= 90 && m < 360;
+    if (!late && st.p.energy > 0) return;
+    const where = st.p.map;
+    UI.sceneActive = true;
+    try {
+      if (late) {
+        await UI.fade('凌晨了。你撐不住，直接睡著了……', 1300);
+        await Sys.sleepUntil('09:30', true);
+        UI.toast(where === 'home' ? '你在沙發上醒來，脖子很痠。' : `你在${(SW.PLACES[where] || {}).name || '外面'}睡著了，被好心人叫醒後搖搖晃晃回家。`, 'warn');
+      } else {
+        // collapsing in daytime costs a few hours, never a whole day
+        await UI.fade('你的體力見底，眼前一黑……', 1300);
+        await Sys.advance(150, '💤 你在原地睡著了……');
+        st.p.energy = 35;
+        UI.toast(`你在${(SW.PLACES[where] || {}).name || '這裡'}睡了兩個半小時。有人在你身上蓋了一件外套。`, 'warn');
+      }
       Sys.mood(-8);
-    }
+    } finally { UI.sceneActive = false; }
   };
 
   Sys.sleepUntil = async function (hm, collapsed) {

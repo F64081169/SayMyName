@@ -87,6 +87,7 @@
 
   // ---------- toasts ----------
   UI.toast = function (text, cls) {
+    if (!$('phone').hidden && /^💬/.test(text)) return;
     const box = $('toasts');
     while (box.children.length > 3) box.removeChild(box.firstChild);
     const el = document.createElement('div'); el.className = 'toast ' + (cls || ''); el.textContent = SW.tx(text);
@@ -120,11 +121,11 @@
   UI.hud = function (dt) {
     hudT -= dt; if (hudT > 0) return; hudT = 0.25;
     const S = SW.S, p = S.p;
-    $('hud-time').textContent = `第${T.day()}天・${T.dayName()} ${U.fmt(T.mod())}`;
+    $('hud-time').innerHTML = `<span class="hud-day">第${T.day()}天・</span>${T.dayName()} ${U.fmt(T.mod())}`;
     const place = p.map === 'home' ? (p.housing === 'shared' ? '你家（合租公寓）' : '你家（套房）') : (SW.PLACES[p.map] || {}).name;
     $('hud-place').textContent = '📍 ' + place;
     const moodFace = p.mood > 75 ? '😄' : p.mood > 50 ? '🙂' : p.mood > 30 ? '😐' : '😞';
-    $('hud-stats').innerHTML = `<span title="體力">⚡<span class="bar"><i style="width:${Math.round(p.energy)}%"></i></span></span><span title="心情">${moodFace}</span><span title="存款">💰${Math.round(p.money).toLocaleString('en-US')}</span>`;
+    $('hud-stats').innerHTML = `<span title="體力">⚡<span class="bar"><i style="width:${Math.round(p.energy)}%;${p.energy < 20 ? 'background:#e46b7b' : ''}"></i></span></span><span title="心情">${moodFace}</span><span title="存款">💰${p.money >= 100000 ? Math.round(p.money / 1000) + 'k' : Math.round(p.money).toLocaleString('en-US')}</span>`;
     const unread = Object.values(S.unread).reduce((a, b) => a + b, 0);
     $('phone-badge').hidden = !unread; $('phone-badge').textContent = unread;
     UI.objective();

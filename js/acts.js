@@ -611,6 +611,7 @@
         await Sys.advance(60, '⏳ 你們煮了二十人份的晚餐……');
         await say('anson', res.score > 60 ? '天啊，速度好快。這是我這週第一次覺得來得及。' : '有點手忙腳亂，但有你在，我心裡踏實很多。');
         S().f.ansonHelped = (S().f.ansonHelped || 0) + 1;
+        Sys.keep('ansonFri');
       }
     });
     Sys.npcCh('anson', { energy: kind === 'grade' ? 12 : 22 });
