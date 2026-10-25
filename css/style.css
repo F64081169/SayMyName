@@ -24,7 +24,7 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2d36; color: var(--ink); font-family: var(--font-ui); font-size: 15px; }
-button { font-family: inherit; font-size: inherit; color: inherit; cursor: pointer; }
+button { font-family: inherit; font-size: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
 button:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
