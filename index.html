@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1f2d36">
+<title>Shannon's World</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game" aria-label="遊戲畫面"></canvas>
+
+  <div id="hud" hidden>
+    <div class="hud-left">
+      <div id="hud-time" class="pill"></div>
+      <div id="hud-place" class="pill sub"></div>
+    </div>
+    <div class="hud-right">
+      <div id="hud-stats" class="pill"></div>
+      <button id="btn-phone" class="round" aria-label="打開手機">📱<span id="phone-badge" class="badge" hidden>0</span></button>
+    </div>
+  </div>
+
+  <div id="objective" hidden></div>
+  <div id="toasts"></div>
+  <div id="stick" hidden><div id="stick-knob"></div></div>
+  <button id="btn-act" hidden><span id="act-label">互動</span><kbd>E</kbd></button>
+
+  <div id="sheet" class="overlay" hidden>
+    <div class="sheet-card">
+      <div id="sheet-title"></div>
+      <div id="sheet-items"></div>
+      <button id="sheet-close" class="ghost">取消</button>
+    </div>
+  </div>
+
+  <div id="dialog" hidden>
+    <div id="dlg-box">
+      <div id="dlg-head"><span id="dlg-face"></span><span id="dlg-name"></span></div>
+      <div id="dlg-text"></div>
+      <div id="dlg-choices"></div>
+      <div id="dlg-next">▼</div>
+    </div>
+  </div>
+
+  <div id="phone" class="overlay" hidden>
+    <div id="phone-body">
+      <div id="phone-top"><button id="phone-back" class="ghost" aria-label="返回">‹</button><span id="phone-title">手機</span><button id="phone-close" class="ghost" aria-label="關閉">✕</button></div>
+      <div id="phone-main"></div>
+      <nav id="phone-tabs"></nav>
+    </div>
+  </div>
+
+  <div id="mini" class="overlay" hidden><div id="mini-body"></div></div>
+  <div id="card" class="overlay" hidden><div id="card-body"></div></div>
+  <div id="fade" hidden><div id="fade-text"></div></div>
+  <div id="title" hidden></div>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/data/chars.js"></script>
+<script src="js/data/maps.js"></script>
+<script src="js/state.js"></script>
+<script src="js/world.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/sys.js"></script>
+<script src="js/acts.js"></script>
+<script src="js/objects.js"></script>
+<script src="js/minigames.js"></script>
+<script src="js/director.js"></script>
+<script src="js/data/puzzles.js"></script>
+<script src="js/data/talk.js"></script>
+<script src="js/data/story.js"></script>
+<script src="js/phone.js"></script>
+<script src="js/input.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

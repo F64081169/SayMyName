@@ -1,0 +1,193 @@
+'use strict';
+(function (SW) {
+  const CORE = SW.CORE = ['mira', 'hsiu', 'pei', 'anson', 'lele'];
+
+  // look: hair color / style, skin, outfit, accessory. Drawn procedurally in world.js.
+  SW.CH = {
+    mira: {
+      name: '米拉', age: 26, job: 'QA Engineer', color: '#4a6fa5', core: true,
+      look: { hair: '#1d1c24', style: 'bob', skin: '#f0c9a6', outfit: '#3d5a80', acc: 'glasses' },
+      bio: '表面冷靜、擅長吐槽、討厭低效率。其實很怕自己的人生永遠停在公司的測試機台前面。',
+      values: '守約、效率、誠實', likes: { sticker: 3, coffee: 2, novel: 1, tea: 1, cake: 1, sunflower: 0, boba: 0, energy: -1, beer: 1, keycaps: 0, picks: 0 },
+      humor: { roast: 2, pun: -1, self: 1 }, gossip: 0.15,
+    },
+    hsiu: {
+      name: '阿修', age: 27, job: 'Firmware Engineer', color: '#3f8f5a', core: true,
+      look: { hair: '#2a2018', style: 'spiky', skin: '#e2b48c', outfit: '#4f7f4a', acc: 'flannel' },
+      bio: '好勝、愛面子，什麼技術問題都要辯到贏。其實非常渴望有人說一句「你做得很好」。',
+      values: '被認可、技術實力、面子', likes: { keycaps: 3, energy: 2, beer: 2, coffee: 1, boba: 0, sticker: -1, sunflower: -1, novel: 0, tea: 0, cake: 1, picks: 1 },
+      humor: { roast: -1, pun: 1, self: 2 }, gossip: 0.25,
+    },
+    pei: {
+      name: '小沛', age: 25, job: '咖啡廳店長／樂團主唱', color: '#e09a30', core: true,
+      look: { hair: '#7a3b22', style: 'long', skin: '#f3cfae', outfit: '#d9a441', acc: 'apron' },
+      bio: '外向、有魅力，永遠是把大家聚在一起的那個人。最近笑得有點用力。',
+      values: '音樂、朋友、自己做決定', likes: { picks: 3, sunflower: 3, cake: 2, boba: 1, beer: 1, coffee: -1, sticker: 1, novel: 0, tea: 0, energy: 0, keycaps: 0 },
+      humor: { roast: 2, pun: 1, self: 2 }, gossip: 0.3,
+    },
+    anson: {
+      name: '安森', age: 29, job: '國中老師／教會小組長', color: '#5c9fd0', core: true,
+      look: { hair: '#2b2b33', style: 'neat', skin: '#efc6a0', outfit: '#8fb8d8', acc: 'cardigan' },
+      bio: '溫柔、會照顧人，總是在協調大家的衝突。習慣幫助每個人，唯獨常常忘了自己。',
+      values: '真誠、陪伴、休息（他自己做不到）', likes: { tea: 3, novel: 3, cake: 1, coffee: 1, boba: 1, sunflower: 1, sticker: 0, beer: -1, energy: -1, keycaps: 0, picks: 0 },
+      humor: { roast: 0, pun: 3, self: 1 }, gossip: 0.05,
+    },
+    lele: {
+      name: '樂樂', age: 25, job: '行銷企劃', color: '#e2649a', core: true,
+      look: { hair: '#c94f86', style: 'pony', skin: '#f6d2b8', outfit: '#f08bb4', acc: 'none' },
+      bio: '活潑、衝動、社交能力爆表，戀愛事件製造機。最怕的是一個人待在安靜的房間。',
+      values: '被在乎、熱鬧、忠誠', likes: { boba: 3, cake: 2, sunflower: 2, sticker: 2, beer: 1, coffee: 0, novel: -1, tea: 0, energy: 0, keycaps: -1, picks: 0 },
+      humor: { roast: 1, pun: 0, self: 2 }, gossip: 0.7,
+    },
+    boss: { name: '林課長', job: '韌體部門課長', color: '#7b7f86', look: { hair: '#555', style: 'bald', skin: '#e6bf98', outfit: '#5f6670', acc: 'tie' } },
+    tsai: { name: '老蔡', job: '好日子餐酒館老闆', color: '#8c5a3c', look: { hair: '#222', style: 'beard', skin: '#d8a77f', outfit: '#2b2b2b', acc: 'none' } },
+    coach: { name: '大熊教練', job: '健身教練', color: '#c25a3a', look: { hair: '#111', style: 'short', skin: '#c99266', outfit: '#d0453a', acc: 'none' } },
+    pastor: { name: '葉牧師', job: '光鹽教會牧師', color: '#6d7f5b', look: { hair: '#bbb', style: 'short', skin: '#edc39c', outfit: '#55684a', acc: 'none' } },
+    landlord: { name: '陳伯', job: '轉角咖啡廳的房東', color: '#8b7d6b', look: { hair: '#ddd', style: 'bald', skin: '#e4b88f', outfit: '#7a6e5c', acc: 'none' } },
+    zhe: { name: '阿哲', job: '樂樂的男友（暫時）', color: '#6b6b8f', look: { hair: '#222', style: 'short', skin: '#e9c19c', outfit: '#3c3c5a', acc: 'none' } },
+    kai: {
+      name: 'Kai', age: 28, job: '自由接案攝影師', color: '#3b8ea5', date: true,
+      look: { hair: '#3a2a1e', style: 'short', skin: '#d9a982', outfit: '#2e6f80', acc: 'cap' },
+      bio: '喜歡追夕陽、說話慢慢的。交友軟體上的自介：「我拍過一百個港口，還沒拍過想停下來的人。」',
+      likes: { coffee: 2, sunflower: 1, beer: 2, novel: 2, boba: 0, sticker: 0, cake: 1, tea: 1, picks: 0, keycaps: 0, energy: 0 },
+      humor: { roast: 0, pun: 1, self: 2 },
+    },
+    yuna: {
+      name: '宥娜', age: 27, job: '動物醫院獸醫', color: '#9a6fc4', date: true,
+      look: { hair: '#2e2230', style: 'long', skin: '#f2cdb2', outfit: '#8a6bb8', acc: 'none' },
+      bio: '直率、行動派，手機裡全是別人家的貓。自介：「週末常被急診 call 走，能接受再右滑。」',
+      likes: { sticker: 3, cake: 2, boba: 2, sunflower: 1, coffee: 1, novel: 0, tea: 1, beer: 1, picks: 0, keycaps: 0, energy: 1 },
+      humor: { roast: 2, pun: 0, self: 1 },
+    },
+  };
+
+  SW.ITEMS = {
+    coffee: { name: '美式咖啡', price: 60, icon: '☕', gift: true, use: { energy: 15 } },
+    boba: { name: '珍珠奶茶', price: 65, icon: '🧋', gift: true, use: { energy: 8, mood: 6 } },
+    energy: { name: '能量飲料', price: 45, icon: '⚡', gift: true, use: { energy: 25, mood: -3 } },
+    beer: { name: '台啤', price: 55, icon: '🍺', gift: true, use: { mood: 8, energy: -5 } },
+    bento: { name: '雞腿便當', price: 95, icon: '🍱', use: { energy: 30, mood: 3 } },
+    groceries: { name: '食材包', price: 220, icon: '🥬', cook: true },
+    sticker: { name: '貓咪貼紙', price: 50, icon: '🐱', gift: true },
+    cake: { name: '小蛋糕', price: 280, icon: '🍰', gift: true, use: { energy: 10, mood: 8 } },
+    picks: { name: '吉他 Pick 組', price: 150, icon: '🎸', gift: true },
+    novel: { name: '小說《慢慢來也沒關係》', price: 320, icon: '📘', gift: true },
+    sunflower: { name: '向日葵花束', price: 380, icon: '🌻', gift: true },
+    tea: { name: '高山烏龍茶', price: 450, icon: '🍵', gift: true },
+    keycaps: { name: '機械鍵帽組', price: 690, icon: '⌨️', gift: true },
+  };
+
+  SW.FACTS = {
+    party: { text: '米拉今晚要幫小沛辦驚喜生日派對', owner: 'mira', secret: true, short: '小沛的驚喜派對' },
+    lease: { text: '轉角咖啡廳的租約出問題了，小沛這週日前要湊出一大筆錢才能續租', owner: 'pei', secret: true, short: '咖啡廳租約危機' },
+    hsiuSong: { text: '阿修喜歡米拉，還偷偷在練一首要唱給她聽的歌', owner: 'hsiu', secret: true, short: '阿修喜歡米拉' },
+    rumorLele: { text: '阿修好像喜歡樂樂', false: true, truth: 'hsiuSong', short: '傳聞：阿修喜歡樂樂' },
+    breakup: { text: '樂樂和阿哲分手了，而且這週就得搬出去', owner: 'lele', short: '樂樂分手' },
+    holiday: { text: '米拉申請上了澳洲打工度假，正在考慮要不要離職', owner: 'mira', secret: true, short: '米拉的澳洲簽證' },
+    ansonTired: { text: '安森最近累到快撐不住，但一直說自己沒事', owner: 'anson', short: '安森快累垮了' },
+    ansonPei: { text: '安森好像一直默默喜歡小沛', owner: 'anson', secret: true, short: '安森喜歡小沛' },
+    fish: { text: '有人在公司茶水間微波鯖魚，整層樓都知道了', owner: null, short: '茶水間鯖魚事件' },
+  };
+
+  // ---------- schedules ----------
+  const WD = [0, 1, 2, 3, 4], ALL = [0, 1, 2, 3, 4, 5, 6];
+  const B = (d, f, t, map, spot, act, extra) => Object.assign({ d, f, t, map, spot, act }, extra || {});
+  SW.SCHED = {
+    mira: [
+      B(ALL, '00:00', '24:00', 'HOME', 'HOME', '在家'),
+      B(WD, '07:30', '08:35', 'HOME', 'kitchen', '吃早餐', { if: (S) => S.p.roommate === 'mira' }),
+      B(WD, '08:35', '12:00', 'office', 'lab', '跑測試'),
+      B(WD, '12:00', '13:00', 'office', 'tea1', '吃午餐'),
+      B(WD, '13:00', '18:40', 'office', 'miraDesk', '寫測試報告'),
+      B([1], '19:00', '21:00', 'cafe', 't2', '在咖啡廳看劇'),
+      B([2], '19:00', '21:30', 'cafe', 't2', '朋友聚會'),
+      B([3], '19:30', '21:00', 'gym', 'yoga', '做瑜珈'),
+      B([4], '18:40', '20:00', 'office', 'miraDesk', '加班'),
+      B([4], '20:00', '22:30', 'cafe', 't2', '看演出'),
+      B([5], '14:00', '17:00', 'cafe', 't2', '在咖啡廳'),
+      B([5], '19:00', '21:00', 'city', 'parkRiver', '散步'),
+      B([6], '10:30', '12:30', 'city', 'parkRiver', '散步'),
+      B([6], '15:00', '18:00', 'cafe', 't2', '在咖啡廳'),
+      B([0], '18:30', '21:45', 'bar', 'long1', '主持驚喜派對', { day: 1 }),
+    ],
+    hsiu: [
+      B(ALL, '00:00', '24:00', 'away', null, '在家'),
+      B(WD, '09:00', '12:00', 'office', 'hsiuDesk', '寫 code'),
+      B(WD, '12:00', '13:00', 'office', 'tea2', '吃午餐'),
+      B(WD, '13:00', '19:30', 'office', 'hsiuDesk', '寫 code'),
+      B([1], '20:00', '21:30', 'gym', 'weights', '重訓'),
+      B([2], '19:30', '21:30', 'cafe', 't3', '朋友聚會'),
+      B([3], '21:00', '22:40', 'studio', 'mic', '偷偷練歌'),
+      B([4], '19:40', '22:30', 'cafe', 't3', '看演出'),
+      B([5], '15:00', '17:30', 'gym', 'weights', '重訓'),
+      B([6], '15:00', '18:00', 'cafe', 't3', '在咖啡廳'),
+      B([0], '19:10', '21:45', 'bar', 'long3', '參加派對', { day: 1 }),
+    ],
+    pei: [
+      B(ALL, '00:00', '24:00', 'away', null, '在家'),
+      B(ALL, '08:00', '18:30', 'cafe', 'counter', '顧店'),
+      B([1], '20:00', '22:00', 'studio', 'mic', '樂團練習'),
+      B([2], '18:30', '21:30', 'cafe', 'counter', '朋友聚會'),
+      B([3], '20:00', '22:00', 'studio', 'mic', '樂團練習'),
+      B([4], '18:30', '23:00', 'cafe', 'stage', '週五演出'),
+      B([5], '18:30', '20:00', 'cafe', 'counter', '整理店務'),
+      B([0], '19:00', '21:45', 'bar', 'long2', '生日派對（壽星）', { day: 1 }),
+    ],
+    anson: [
+      B(ALL, '00:00', '24:00', 'away', null, '在家'),
+      B(WD, '07:30', '16:40', 'away', null, '在學校上課'),
+      B(WD, '17:00', '18:40', 'cafe', 't1', '改作業'),
+      B([1], '19:00', '21:00', 'church', 'pulpit', '布置教會'),
+      B([2], '19:00', '21:30', 'cafe', 't1', '朋友聚會'),
+      B([3], '19:00', '21:40', 'church', 'group2', '帶小組'),
+      B([4], '16:00', '21:00', 'church', 'kitchen', '準備社區愛宴'),
+      B([5], '15:00', '17:30', 'cafe', 't1', '在咖啡廳'),
+      B([6], '09:30', '13:00', 'church', 'pulpit', '主日服事'),
+      B([6], '15:00', '18:00', 'cafe', 't1', '在咖啡廳'),
+      B([0], '19:40', '21:45', 'bar', 'long4', '參加派對', { day: 1 }),
+    ],
+    lele: [
+      B(ALL, '00:00', '24:00', 'HOME', 'HOME', '在家'),
+      B(WD, '09:30', '18:30', 'away', null, '上班'),
+      B([0, 2, 4], '12:30', '13:30', 'cafe', 't4', '吃午餐'),
+      B([2], '19:00', '21:30', 'cafe', 't4', '朋友聚會'),
+      B([3], '19:00', '21:00', 'bar', 'stool2', '喝一杯'),
+      B([4], '19:30', '22:30', 'cafe', 't4', '看演出'),
+      B([5], '11:00', '13:00', 'city', 'shopFront', '逛街'),
+      B([5], '15:00', '17:00', 'cafe', 't4', '在咖啡廳'),
+      B([6], '15:00', '17:30', 'cafe', 't4', '在咖啡廳'),
+      B([0], '19:00', '21:45', 'bar', 'long5', '參加派對', { day: 1 }),
+      B([1], '19:30', '20:40', 'bar', 'booth1', '和阿哲吃飯', { day: 2 }),
+      B([1], '20:40', '23:30', 'city', 'park1', '一個人坐在長椅上', { day: 2 }),
+    ],
+    boss: [
+      B(ALL, '00:00', '24:00', 'away', null, '下班了'),
+      B(WD, '09:00', '19:00', 'office', 'boss', '在主管辦公室'),
+      B([4], '18:00', '22:00', 'office', 'boss', '盯 release', { day: 5 }),
+    ],
+    tsai: [B(ALL, '00:00', '24:00', 'away', null, '休息'), B(ALL, '17:00', '24:00', 'bar', 'tsai', '顧吧台'), B(ALL, '00:00', '02:00', 'bar', 'tsai', '顧吧台')],
+    coach: [B(ALL, '00:00', '24:00', 'away', null, '休息'), B(ALL, '07:00', '22:00', 'gym', 'coach', '帶學員')],
+    pastor: [
+      B(ALL, '00:00', '24:00', 'away', null, '休息'),
+      B([1], '19:00', '21:00', 'church', 'pew2', '整理教會'),
+      B([3], '19:00', '21:40', 'church', 'group1', '參加小組'),
+      B([4], '16:00', '21:00', 'church', 'kitchen2', '準備社區愛宴'),
+      B([6], '09:00', '13:00', 'church', 'pulpit2', '主日講道'),
+    ],
+    landlord: [B(ALL, '00:00', '24:00', 'away', null, ''), B([5], '13:50', '16:00', 'cafe', 't5', '和小沛談租約', { day: 6 })],
+    zhe: [B(ALL, '00:00', '24:00', 'away', null, ''), B([1], '19:30', '20:40', 'bar', 'booth1b', '和樂樂吃飯', { day: 2 })],
+    kai: [B(ALL, '00:00', '24:00', 'away', null, '')],
+    yuna: [B(ALL, '00:00', '24:00', 'away', null, '')],
+  };
+
+  SW.PLACES = {
+    office: { name: '矽藍科技', icon: '🏢', desc: '你上班的地方。辦公區、實驗室、會議室、茶水間。' },
+    home: { name: '竹光公寓（你家）', icon: '🏠', desc: '你住的地方。' },
+    cafe: { name: '轉角咖啡廳', icon: '☕', desc: '六個人的老位子。小沛是店長。' },
+    church: { name: '光鹽教會', icon: '⛪', desc: '安森的教會。週四小組、週日聚會。' },
+    gym: { name: '竹風健身房', icon: '🏋️', desc: '大熊教練的地盤。' },
+    bar: { name: '好日子餐酒館', icon: '🍻', desc: '聚會、約會、喝悶酒都在這裡。' },
+    studio: { name: '回聲音樂工作室', icon: '🎸', desc: '練團室、錄音間。' },
+    city: { name: '新竹・光復生活圈', icon: '🌆', desc: '街道、河濱公園、便利商店。' },
+  };
+})(window.SW);
