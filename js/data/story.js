@@ -29,7 +29,7 @@
     5: { kicker: 'EP03・星期五', title: '最糟糕的星期五', lines: [['A線', '18:00 FW 2.3 release。'], ['B線', '20:00 轉角 Live。'], ['C線', '教會的社區愛宴、你的約會，還有快撐不住的安森——全部都在今晚。']] },
     6: { kicker: '第六天・星期六', title: '宿醉、房東與澳洲', lines: [['A線', '下午兩點，房東陳伯來到轉角。'], ['B線', '有人在想要不要離開台灣。'], ['C線', '樂樂的人生，也需要一個新的地址。']] },
     7: { kicker: '第一季・第一週完結', title: '我們還有地方可以坐嗎？', lines: [['A線', '下午三點，房東會給答覆。'], ['B線', '週日的教會、週日的河堤、週日晚上的焦慮。'], ['C線', '晚上，大家約好再坐在一起一次——不管在哪裡。']] },
-    generic: (d) => ({ kicker: `第 ${d} 天・${T.dayName(d)}`, title: U.pick(['日子還在繼續', '新的一週，舊的我們', '世界記得你']), lines: [['A線', d === 8 ? '今天公布 Feature Owner。' : '工作還在繼續。'], ['B線', (S().cafe.outcome === 'close' ? '轉角不在了，但大家還是找得到地方坐。' : '轉角（或它的新家）還是大家的老位子。')], ['C線', '這個世界記得你上週做過的每一件事。']], note: '第一季後續的故事會在之後的更新加入。現在，你可以自由地生活。' }),
+    generic: (d) => ({ kicker: `第 ${d} 天・${T.dayName(d)}`, title: U.pick(['日子還在繼續', '新的一週，舊的我們', '世界記得你']), lines: [['A線', d === 8 ? '今天公布 Feature Owner。' : '工作還在繼續。'], ['B線', (S().cafe.outcome === 'close' ? '轉角不在了，但大家還是找得到地方坐。' : '轉角（或它的新家）還是大家的老位子。')], ['C線', '這個世界記得你上週做過的每一件事。']], note: d >= 15 ? '第三週〈秘密的保存期限〉會在之後的更新加入。現在，你可以自由地生活。' : '第一季後續的故事會在之後的更新加入。現在，你可以自由地生活。' }),
   };
   SW.HINTS = [
     { day: 1, to: '11:00', cond: () => Sys.pendingReplies().length > 0, text: () => `📱 有 ${Sys.pendingReplies().length} 則訊息等你回覆（右上角手機 / P）` },
@@ -348,7 +348,7 @@
       await say('hsiu', '既然 4521 還沒人修好，我們先看我的 GC patch。');
       const c = await choose([{ t: '當著大家的面稱讚他的寫法', v: 'praise' }, { t: '指出一個真正的問題', v: 'find' }, { t: '低頭滑手機', v: 'phone' }]);
       if (c === 'praise') { await say('hsiu', '……謝、謝謝。'); await narr('他整場會議都坐得特別直。'); Sys.ch('hsiu', { friend: 5 }); Sys.mem('hsiu', '你在 code review 上當眾稱讚他', 1, 'praisedPublic'); }
-      else if (c === 'find') { if (st.p.skill.debug >= 3) { await say('hsiu', '……被你抓到了。好。我改。'); Sys.ch('hsiu', { trust: 3 }); st.work.perf += 1; } else { await say('hsiu', '那不是問題，那是設計。'); Sys.ch('hsiu', { tension: 3 }, true); } }
+      else if (c === 'find') { if (st.p.skill.debug >= 3) { await say('hsiu', '……被你抓到了。好。我改。'); Sys.ch('hsiu', { trust: 3 }); st.work.perf += 1; } else { await say('hsiu', '那不是問題，那是設計。'); Sys.ch('hsiu', { tension: 3 }, true); st.f.gcWarned = true; } }
       else { st.work.bossTrust -= 2; }
     }
     await narr('會議快結束時，林課長推門進來。');
@@ -1185,11 +1185,15 @@ ${prof.html}
     }
     if (st.f.leleStay === 'cafe') st.f.leleStay = 'own';
   } });
-  add({ id: 'd8_feature', kind: 'approach', npc: 'boss', day: [8, 9, 10], where: 'office', prio: 60, run: async (st) => {
+  Story.featureWinner = function (st) {
     const W = st.work;
     const me2 = W.perf * 3 + W.bossTrust * 0.6 + W.bugsDone.length * 3 + (st.f.releaseDone === 'player' ? 12 : 0) + (st.f.releaseOwner === 'auto' ? 10 : 0) - W.warn * 8 - Math.max(0, W.legend - 8);
     const hs = W.hsiuScore - 10 + (st.f.hsiuSupport ? 10 : 0) + (st.f.releaseOwner === 'hsiu' ? 12 : 0);
-    const win = me2 >= hs;
+    return me2 >= hs ? 'player' : 'hsiu';
+  };
+  add({ id: 'd8_feature', kind: 'approach', npc: 'boss', day: [8, 9, 10], where: 'office', prio: 60, cond: (st) => !st.f.featureOwner, run: async (st) => {
+    const W = st.work;
+    const win = Story.featureWinner(st) === 'player';
     st.f.featureOwner = win ? 'player' : 'hsiu';
     await say('boss', '我宣布一下。這一季的 Feature Owner——');
     await say('boss', win ? `是 {N}。` : '是阿修。');

@@ -438,15 +438,16 @@
   // =====================================================================
   // THE PERSON YOUR CHOICES ADD UP TO
   // =====================================================================
-  Human.profile = function () {
+  Human.profile = function (span) {
+    span = span || '這一週';
     const st = S(), s = st.stats, lies = (st.lies || []).filter((l) => l.kind !== 'white' && !/_blame$/.test(l.id));
     const caught = lies.filter((l) => l.exposed || l.resolved).length;
     const leaked = Object.keys(st.f).filter((k) => /^leak_/.test(k) && Array.isArray(st.f[k]) && st.f[k].length).length;
     const kept = ['lease', 'hsiuSong', 'holiday', 'ansonPei'].filter((f) => K(f) && !(st.f['leak_' + f] || []).length).length;
     const out = [];
-    if (!lies.length) out.push('這一週，你沒有對任何人說謊。這比聽起來難。');
+    if (!lies.length) out.push(`${span}，你沒有對任何人說謊。這比聽起來難。`);
     else {
-      let l = `這一週你說了 ${lies.length} 個謊，其中 ${caught} 個被拆穿。`;
+      let l = `${span}你說了 ${lies.length} 個謊，其中 ${caught} 個被拆穿。`;
       if (s.confessed) l += '被拆穿的時候，你至少有一次選擇了承認。';
       if (s.blamed) l += `你也曾經把責任推到別人身上。`;
       if (s.doubled) l += '有人選擇了相信你的第二個謊。';
