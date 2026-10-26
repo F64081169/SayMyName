@@ -305,6 +305,10 @@
       if (st === 'bob') { g.fillRect(cx - hr * 1.04, hy - hr * 0.1, hr * 0.35, hr * 1.0); g.fillRect(cx + hr * 0.69, hy - hr * 0.1, hr * 0.35, hr * 1.0); }
       if (st === 'spiky') { for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(cx + i * hr * 0.4 - hr * 0.2, hy - hr * 0.7); g.lineTo(cx + i * hr * 0.4, hy - hr * 1.45); g.lineTo(cx + i * hr * 0.4 + hr * 0.2, hy - hr * 0.7); g.fill(); } }
       if (st === 'pony') { g.beginPath(); g.arc(cx + hr * 0.95, hy - hr * 0.7, hr * 0.42, 0, 7); g.fill(); }
+      if (st === 'wolf') {
+        for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(cx + sx * hr * 1.04, hy - hr * 0.3); g.lineTo(cx + sx * hr * 1.14, hy + hr * 0.85); g.lineTo(cx + sx * hr * 0.92, hy + hr * 0.5); g.lineTo(cx + sx * hr * 0.98, hy + hr * 1.3); g.lineTo(cx + sx * hr * 0.72, hy + hr * 0.15); g.fill(); }
+        for (let i = -2; i <= 1; i++) { g.beginPath(); g.moveTo(cx + i * hr * 0.42, hy - hr * 0.78); g.lineTo(cx + (i + 0.5) * hr * 0.42, hy - hr * 0.38); g.lineTo(cx + (i + 1) * hr * 0.42, hy - hr * 0.78); g.fill(); }
+      }
       if (st === 'neat') { g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(cx - hr * 0.3, hy - hr * 1.0, hr * 0.08, hr * 0.5); }
       if (st === 'beard') { g.fillStyle = look.hair; g.beginPath(); g.arc(cx, hy + hr * 0.35, hr * 0.62, 0, Math.PI); g.fill(); }
     }

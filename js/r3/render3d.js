@@ -681,7 +681,7 @@
       const sc = new THREE.Scene();
       sc.add(new THREE.HemisphereLight(0xffffff, 0x556655, 0.9));
       const dl = new THREE.DirectionalLight(0xfff1dc, 0.9); dl.position.set(2, 4, 3); sc.add(dl);
-      const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 20); cam.position.set(0, 1.05, 4.2); cam.lookAt(0, 0.95, 0);
+      const cam = new THREE.PerspectiveCamera(30, (canvas.clientWidth || 192) / (canvas.clientHeight || 192), 0.1, 20); cam.position.set(0, 1.46, 1.9); cam.lookAt(0, 1.4, 0); // waist-up framing so hairstyles read
       const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.04, 32), M('#2f8f83', { roughness: 0.6 })); disc.position.y = -0.02; sc.add(disc);
       const o = { rr, sc, cam, h: null, t: 0, alive: true };
       const loop = () => { if (!canvas.isConnected) { o.alive = false; rr.dispose(); return; } o.t += 0.016; if (o.h) { o.h.rotation.y = Math.sin(o.t * 0.8) * 0.6; MD.animHuman(o.h, 0.016, false); } rr.render(sc, cam); requestAnimationFrame(loop); };

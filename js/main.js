@@ -10,7 +10,7 @@
   const HAIR = ['#1d1c24', '#4a2f22', '#7a3b22', '#c9a063', '#c94f86', '#3f5f8f', '#e8e3d8'];
   const SKIN = ['#f6d6bd', '#efc6a0', '#e2b48c', '#c99266', '#9a6a46'];
   const OUTFIT = ['#f2b33d', '#2f8f83', '#e46b7b', '#4a6fa5', '#3d3d48', '#f4f7f3', '#8a6bb8'];
-  const STYLES = [['bob', '鮑伯頭'], ['long', '長髮'], ['short', '短髮'], ['pony', '馬尾'], ['spiky', '刺蝟頭'], ['neat', '旁分']];
+  const STYLES = [['bob', '鮑伯頭'], ['long', '長髮'], ['short', '短髮'], ['pony', '馬尾'], ['spiky', '刺蝟頭'], ['neat', '旁分'], ['wolf', '狼尾頭']];
 
   function lookEditor(look, onChange) {
     const sw = (arr, key) => `<div class="swatches">${arr.map((c) => `<button data-k="${key}" data-v="${c}" class="${look[key] === c ? 'on' : ''}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div>`;

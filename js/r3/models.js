@@ -102,6 +102,24 @@
     if (st === 'pony') { sph(head, hr * 0.42, hair, 0, hr * 0.45, -hr * 1.05); const tail = sph(head, hr * 0.35, hair, 0, -hr * 0.5, -hr * 1.25, 0.8, 2.2, 0.8); tail.rotation.x = 0.3; }
     if (st === 'spiky') { for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; const c = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.09, 6), hair); c.position.set(Math.cos(a) * hr * 0.55, hr * 0.85, Math.sin(a) * hr * 0.55 - 0.01); c.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5); head.add(c); } }
     if (st === 'neat') { box(head, hr * 1.2, hr * 0.25, hr * 1.4, hair, hr * 0.2, hr * 0.78, 0.0); }
+    if (st === 'wolf') {
+      // 狼尾頭: choppy layered crown, split fringe, short tapered sides, long feathered tail down the nape
+      const UP = new THREE.Vector3(0, 1, 0);
+      const tuft = (x, y, z, dx, dy, dz, len, r) => {
+        const d = new THREE.Vector3(dx, dy, dz).normalize();
+        const c = new THREE.Mesh(new THREE.ConeGeometry(r, len, 6), hair);
+        c.quaternion.setFromUnitVectors(UP, d); c.position.set(x + d.x * len / 2, y + d.y * len / 2, z + d.z * len / 2);
+        c.castShadow = true; head.add(c);
+      };
+      for (let i = 0; i < 10; i++) { // shaggy crown layers fanning out and down
+        const a = (i / 10) * Math.PI * 2 + 0.3;
+        tuft(Math.cos(a) * hr * 0.7, hr * 0.68, Math.sin(a) * hr * 0.7 - 0.01, Math.cos(a), -0.8, Math.sin(a), 0.08, 0.036);
+      }
+      for (const [x, s] of [[-0.055, -0.6], [-0.02, -0.2], [0.02, 0.2], [0.055, 0.6]]) tuft(x, hr * 0.62, hr * 0.72, s, -1, 0.45, 0.075, 0.022); // curtain fringe
+      for (const ex of [-1, 1]) for (const z of [0.01, -0.035]) tuft(ex * hr * 0.9, hr * 0.15, z, ex * 0.25, -1, -0.1, 0.07, 0.02); // short sides
+      sph(head, hr * 0.78, hair, 0, -hr * 0.45, -hr * 0.6, 1.2, 1.15, 0.72); // nape fill
+      for (const [x, len] of [[-0.075, 0.15], [-0.04, 0.2], [0, 0.22], [0.04, 0.2], [0.075, 0.15]]) tuft(x, -hr * 0.4, -hr * 0.72, x * 2.2, -1, -0.12, len, 0.032); // the tail, hugging the neck
+    }
     if (st === 'beard') { const b = new THREE.Mesh(new THREE.SphereGeometry(hr * 0.98, 16, 10, 0, Math.PI * 2, Math.PI * 0.55, Math.PI * 0.45), hair); b.position.set(0, -0.005, 0.012); head.add(b); }
     if (look.acc === 'glasses') { const gm = M('#1d1d22', { roughness: 0.3 }); for (const ex of [-0.04, 0.04]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.0045, 6, 16), gm); r.position.set(ex, 0.012, hr * 0.97); head.add(r); } box(head, 0.03, 0.005, 0.005, gm, 0, 0.012, hr * 0.98); }
     if (look.acc === 'cap') { const cp = new THREE.Mesh(new THREE.SphereGeometry(hr * 1.12, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), M(look.outfit)); cp.position.y = 0.02; head.add(cp); box(head, hr * 1.5, 0.012, hr * 1.1, M(look.outfit), 0, 0.03, hr * 0.95); }
