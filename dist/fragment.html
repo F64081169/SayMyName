@@ -1360,6 +1360,11 @@ window.SW = window.SW || {};
         for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(cx + sx * hr * 1.04, hy - hr * 0.3); g.lineTo(cx + sx * hr * 1.14, hy + hr * 0.85); g.lineTo(cx + sx * hr * 0.92, hy + hr * 0.5); g.lineTo(cx + sx * hr * 0.98, hy + hr * 1.3); g.lineTo(cx + sx * hr * 0.72, hy + hr * 0.15); g.fill(); }
         for (let i = -2; i <= 1; i++) { g.beginPath(); g.moveTo(cx + i * hr * 0.42, hy - hr * 0.78); g.lineTo(cx + (i + 0.5) * hr * 0.42, hy - hr * 0.38); g.lineTo(cx + (i + 1) * hr * 0.42, hy - hr * 0.78); g.fill(); }
       }
+      if (st === 'jp') {
+        g.beginPath(); g.arc(cx, hy - hr * 0.2, hr * 1.12, Math.PI * 1.05, Math.PI * 1.95); g.fill();
+        for (const sx of [-1, 1]) g.fillRect(cx + (sx < 0 ? -hr * 1.08 : hr * 0.78), hy - hr * 0.3, hr * 0.3, hr * 0.62);
+        for (let i = 0; i < 5; i++) { const x = cx - hr * 0.85 + i * hr * 0.36; g.beginPath(); g.moveTo(x, hy - hr * 0.8); g.lineTo(x + hr * 0.48, hy - hr * 0.3); g.lineTo(x + hr * 0.3, hy - hr * 0.8); g.fill(); }
+      }
       if (st === 'neat') { g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(cx - hr * 0.3, hy - hr * 1.0, hr * 0.08, hr * 0.5); }
       if (st === 'beard') { g.fillStyle = look.hair; g.beginPath(); g.arc(cx, hy + hr * 0.35, hr * 0.62, 0, Math.PI); g.fill(); }
     }
@@ -1846,9 +1851,17 @@ window.SW = window.SW || {};
     for (const ex of [-1, 1]) { const ear = new THREE.Mesh(SG(0.022, 8, 6), skin); ear.position.set(ex * hr * 0.92, 0, 0); ear.scale.set(0.5, 1, 0.8); head.add(ear); }
     // hair
     const st = look.style;
+    const UP = new THREE.Vector3(0, 1, 0);
+    const tuft = (x, y, z, dx, dy, dz, len, r) => { // a tapered lock of hair growing from (x,y,z) toward (dx,dy,dz)
+      const d = new THREE.Vector3(dx, dy, dz).normalize();
+      const c = new THREE.Mesh(new THREE.ConeGeometry(r, len, 6), hair);
+      c.quaternion.setFromUnitVectors(UP, d); c.position.set(x + d.x * len / 2, y + d.y * len / 2, z + d.z * len / 2);
+      c.castShadow = true; head.add(c); return c;
+    };
     if (st !== 'bald') {
       const cap = new THREE.Mesh(new THREE.SphereGeometry(hr * 1.08, 20, 14, 0, Math.PI * 2, 0, Math.PI * (st === 'spiky' ? 0.5 : 0.56)), hair);
       cap.rotation.x = -0.25; cap.position.set(0, 0.012, -0.008); cap.castShadow = true; head.add(cap);
+      if (st === 'jp') cap.scale.set(1.06, 1.08, 1.05);
       const back = new THREE.Mesh(new THREE.SphereGeometry(hr * 1.07, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6), hair); back.rotation.x = -1.35; back.position.set(0, 0.0, -0.01); head.add(back);
     } else {
       const band = new THREE.Mesh(new THREE.TorusGeometry(hr * 0.95, 0.022, 6, 18, Math.PI * 1.2), hair); band.rotation.set(Math.PI / 2, 0, Math.PI * -0.1 + Math.PI * 1.4); band.position.y = 0.0; head.add(band);
@@ -1860,13 +1873,6 @@ window.SW = window.SW || {};
     if (st === 'neat') { box(head, hr * 1.2, hr * 0.25, hr * 1.4, hair, hr * 0.2, hr * 0.78, 0.0); }
     if (st === 'wolf') {
       // 狼尾頭: choppy layered crown, split fringe, short tapered sides, long feathered tail down the nape
-      const UP = new THREE.Vector3(0, 1, 0);
-      const tuft = (x, y, z, dx, dy, dz, len, r) => {
-        const d = new THREE.Vector3(dx, dy, dz).normalize();
-        const c = new THREE.Mesh(new THREE.ConeGeometry(r, len, 6), hair);
-        c.quaternion.setFromUnitVectors(UP, d); c.position.set(x + d.x * len / 2, y + d.y * len / 2, z + d.z * len / 2);
-        c.castShadow = true; head.add(c);
-      };
       for (let i = 0; i < 10; i++) { // shaggy crown layers fanning out and down
         const a = (i / 10) * Math.PI * 2 + 0.3;
         tuft(Math.cos(a) * hr * 0.7, hr * 0.68, Math.sin(a) * hr * 0.7 - 0.01, Math.cos(a), -0.8, Math.sin(a), 0.08, 0.036);
@@ -1875,6 +1881,21 @@ window.SW = window.SW || {};
       for (const ex of [-1, 1]) for (const z of [0.01, -0.035]) tuft(ex * hr * 0.9, hr * 0.15, z, ex * 0.25, -1, -0.1, 0.07, 0.02); // short sides
       sph(head, hr * 0.78, hair, 0, -hr * 0.45, -hr * 0.6, 1.2, 1.15, 0.72); // nape fill
       for (const [x, len] of [[-0.075, 0.15], [-0.04, 0.2], [0, 0.22], [0.04, 0.2], [0.075, 0.15]]) tuft(x, -hr * 0.4, -hr * 0.72, x * 2.2, -1, -0.12, len, 0.032); // the tail, hugging the neck
+    }
+    if (st === 'jp') {
+      // 日系帥潮頭: rounded airy volume, a side-swept fringe lying on the forehead down to the brows,
+      // soft locks brushed over the ears, smooth tapered nape
+      const lock = (x, y, z, r, sx, sy, sz, rx, ry, rz) => { const l = sph(head, r, hair, x, y, z, sx, sy, sz); l.rotation.set(rx || 0, ry || 0, rz || 0); return l; };
+      const fringe = new THREE.Mesh(new THREE.SphereGeometry(hr * 1.1, 20, 10, Math.PI / 2 - 0.9, 1.8, 0.05, Math.PI * 0.4), hair);
+      fringe.rotation.set(-0.1, 0, -0.14); fringe.castShadow = true; head.add(fringe);
+      for (const [x, y, rz] of [[-0.06, 0.06, 0.5], [-0.022, 0.056, 0.45], [0.018, 0.052, 0.4], [0.055, 0.05, 0.35]]) lock(x, y, Math.sqrt(Math.max(0, (hr * 1.08) ** 2 - x * x - y * y)), hr * 0.26, 0.75, 1.5, 0.32, -0.25, 0, rz); // soft swept locks on the fringe edge
+      for (const ex of [-1, 1]) {
+        lock(ex * hr * 0.93, hr * 0.28, 0.02, hr * 0.3, 0.42, 1.35, 0.85, 0, 0, ex * 0.12); // over the ears
+        lock(ex * hr * 0.88, hr * 0.25, -0.045, hr * 0.3, 0.45, 1.3, 0.9, 0, 0, ex * 0.15);
+      }
+      lock(0, hr * 0.8, 0.0, hr * 0.66, 1.25, 0.72, 1.3, -0.2); // airy crown volume
+      for (const [x, z] of [[-0.05, 0.03], [-0.015, 0.045], [0.025, 0.04], [0.06, 0.015], [-0.035, -0.02], [0.02, -0.01]]) tuft(x, hr * 1.02 - Math.abs(x) * 0.25, z, 0.35, -0.25, 1, 0.07, 0.03); // texture swept toward the fringe
+      lock(0, -hr * 0.2, -hr * 0.6, hr * 0.72, 1.15, 1.05, 0.62); // smooth tapered nape
     }
     if (st === 'beard') { const b = new THREE.Mesh(new THREE.SphereGeometry(hr * 0.98, 16, 10, 0, Math.PI * 2, Math.PI * 0.55, Math.PI * 0.45), hair); b.position.set(0, -0.005, 0.012); head.add(b); }
     if (look.acc === 'glasses') { const gm = M('#1d1d22', { roughness: 0.3 }); for (const ex of [-0.04, 0.04]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.0045, 6, 16), gm); r.position.set(ex, 0.012, hr * 0.97); head.add(r); } box(head, 0.03, 0.005, 0.005, gm, 0, 0.012, hr * 0.98); }
@@ -7678,7 +7699,7 @@ window.SW = window.SW || {};
   const HAIR = ['#1d1c24', '#4a2f22', '#7a3b22', '#c9a063', '#c94f86', '#3f5f8f', '#e8e3d8'];
   const SKIN = ['#f6d6bd', '#efc6a0', '#e2b48c', '#c99266', '#9a6a46'];
   const OUTFIT = ['#f2b33d', '#2f8f83', '#e46b7b', '#4a6fa5', '#3d3d48', '#f4f7f3', '#8a6bb8'];
-  const STYLES = [['bob', '鮑伯頭'], ['long', '長髮'], ['short', '短髮'], ['pony', '馬尾'], ['spiky', '刺蝟頭'], ['neat', '旁分'], ['wolf', '狼尾頭']];
+  const STYLES = [['bob', '鮑伯頭'], ['long', '長髮'], ['short', '短髮'], ['pony', '馬尾'], ['spiky', '刺蝟頭'], ['neat', '旁分'], ['wolf', '狼尾頭'], ['jp', '日系帥潮頭']];
 
   function lookEditor(look, onChange) {
     const sw = (arr, key) => `<div class="swatches">${arr.map((c) => `<button data-k="${key}" data-v="${c}" class="${look[key] === c ? 'on' : ''}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div>`;
