@@ -999,7 +999,7 @@
   Story.outcome = function (st) {
     const c = st.cafe;
     const bloom = st.f.bloom === 'sold' ? 25000 : st.f.bloom === 'fooled' ? -6000 : 0; // what Bloom knew about her
-    const need = Math.max(60000, c.need - (c.cut || 0) + bloom);
+    const need = Math.max(60000, c.need - (c.cut || 0) + bloom + (SW.Mystery ? SW.Mystery.outcomeNeed() : 0));
     const total = c.fund + (c.crowd || 0) + (c.partner === 'company' ? 20000 : 0);
     if (st.f.churchOffer && !c.partner) c.partner = 'church';
     if (total >= need && c.will >= 40) return 'renew';

@@ -239,6 +239,7 @@
         asked = true; st.f.landlordSon = true;
         await say('vivian', '……他做生意欠了一筆錢。陳伯不想租給我們，但他只有一個兒子。');
         await say('vivian', '所以，你懂的。這件事遲早會發生。你只是決定，要不要從中拿點什麼。');
+        if (SW.Mystery) await SW.Mystery.vivian();
         continue;
       }
       st.f.bloom = c;
@@ -322,7 +323,7 @@
     await SW.scene(async () => {
       Sys.drink();
       await narr(`${U.pick(['你們又點了一輪。', '老蔡默默又放了兩杯在桌上。'])}${nm(id)}的臉有點紅，說話變得很慢。`);
-      for (const l of Human.truthAbout(id)) await say(id, l);
+      if (!(SW.Mystery && await SW.Mystery.drunk(id))) for (const l of Human.truthAbout(id)) await say(id, l);
       const [fact, lines] = CONFESS[id];
       if (!K(fact)) { await narr('沉默了一下。'); for (const l of lines) await say(id, l); Sys.learn('player', fact, id); st.f['trust_' + fact] = true; }
       const open = Sys.openLies(id).filter((l) => l.kind !== 'white');
@@ -467,6 +468,8 @@
     if (st.f.bloom === 'fooled') T3.push('你收下了 Bloom 的信封，然後騙了他們');
     if (s.cheated) T3.push('你有另一半，卻還和別人約會');
     if (s.pried) T3.push('你趁別人喝醉，問了不該問的事');
+    const mys = SW.Mystery ? SW.Mystery.profile() : { t3: [], hidden: [] };
+    T3.push(...mys.t3);
     if (T3.length) out.push(T3.join('；') + '。');
     // what nobody knows yet
     const hidden = [];
@@ -474,6 +477,7 @@
     if (st.f.bloom === 'sold' && !st.f.bloomRevealed) hidden.push('那個信封');
     if (st.f.affair && !SW.CORE.some((id) => Sys.knows(id, 'affair'))) hidden.push(`你和${nm(st.f.affair.with)}的約會`);
     if (st.f.hsiuQuitEval) hidden.push('阿修那首歌為什麼沒有唱');
+    hidden.push(...mys.hidden);
     // who you were
     const bad = (s.betrayals || 0) + (s.cheated || 0) + (s.blamed || 0);
     let title;

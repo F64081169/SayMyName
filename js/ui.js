@@ -155,15 +155,13 @@
     } else btn.hidden = true;
   };
 
-  let objCollapsed = false, lastObj = '';
+  let lastObj = '';
   UI.objective = function () {
     const el = $('objective');
     if (UI.busy()) { el.hidden = true; return; }
     const lines = SW.Sys.objectives();
-    if (!lines.length) { el.hidden = true; return; }
-    const html = objCollapsed ? `<div class="row">📋 <b>提醒 (${lines.length})</b></div>` : lines.map((l) => `<div class="row">${l}</div>`).join('');
+    const html = `<div class="row today-btn">📋 <b>今天</b><span class="muted">（點我：去哪、為什麼）</span></div>` + lines.map((l) => `<div class="row">${l}</div>`).join('');
     if (html !== lastObj) { el.innerHTML = html; lastObj = html; }
     el.hidden = false;
   };
-  UI.toggleObjective = () => { objCollapsed = !objCollapsed; lastObj = ''; };
 })(window.SW);

@@ -93,7 +93,7 @@
     // the second tap of a double-tap on the act button lands on the backdrop of the sheet it just opened: ignore it
     $('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet' && performance.now() - (UI.sheetOpened || 0) > 400) UI.closeSheet(true); });
     $('phone').addEventListener('click', (e) => { if (e.target.id === 'phone') SW.Phone.close(); });
-    $('objective').addEventListener('click', () => UI.toggleObjective());
+    $('objective').addEventListener('click', () => { IN.release(); SW.Today.open(); });
   };
 
   function tapAt(sx, sy, touch) {

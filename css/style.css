@@ -246,3 +246,14 @@ button:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; 
   .sitem .ic { font-size: 18px; width: 22px; }
   #sheet-close { min-height: 40px; margin-top: 6px; }
 }
+
+/* the objective box is the door to 「今天」 */
+#objective { cursor: pointer; }
+#objective .today-btn b { color: var(--tile); }
+#objective .today-btn .muted { font-size: 11px; margin-left: 3px; }
+#sheet-title small { white-space: pre-line; }
+
+/* the prologue is a flash-forward: the world goes dim and still */
+body.prologue #game { filter: grayscale(.85) blur(3px) brightness(.4); transition: filter .6s; }
+body.prologue #hud, body.prologue #minimap, body.prologue #crosshair, body.prologue #objective,
+body.prologue #guide, body.prologue #toasts, body.prologue #btn-act { visibility: hidden; }

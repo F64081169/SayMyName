@@ -107,7 +107,7 @@
     SW.save(true);
     if (!Main.loopOn) { Main.loopOn = true; requestAnimationFrame(loop); }
     Main.booting = true;
-    setTimeout(async () => { await SW.Dir.episodeCard(); Main.booting = false; SW.Dir.tick(); if (fresh) setTimeout(() => SW.UI.toast(SW.R3.mobile ? '👆 左半邊拖曳移動・右半邊拖曳轉頭・點人或東西互動' : '⌨️ WASD 移動・滑鼠轉頭（點畫面鎖定）・E 互動・P 手機・M 地圖'), 600); }, 60);
+    setTimeout(async () => { if (fresh && SW.Mystery) await SW.Mystery.prologue(); await SW.Dir.episodeCard(); Main.booting = false; SW.Dir.tick(); if (fresh) setTimeout(() => SW.UI.toast(SW.R3.mobile ? '👆 左半邊拖曳移動・右半邊拖曳轉頭・點人或東西互動' : '⌨️ WASD 移動・滑鼠轉頭（點畫面鎖定）・E 互動・P 手機・M 地圖'), 600); }, 60);
   };
 
   let last = 0, dirT = 0, exT = 0;
