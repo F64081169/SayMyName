@@ -206,10 +206,10 @@ button:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; 
 @keyframes fadeIn { from { opacity: 0; } }
 
 /* ---------- title / creation ---------- */
-#title { position: absolute; inset: 0; z-index: 50; overflow-y: auto; background: radial-gradient(120% 80% at 50% 0%, #2c4a52 0%, #1f2d36 60%, #172229 100%); color: #f4f7f3;
+#title { position: absolute; inset: 0; z-index: 50; overflow-y: auto; background: linear-gradient(180deg, rgba(23,34,41,0.25) 0%, rgba(23,34,41,0.55) 45%, rgba(23,34,41,0.88) 100%); color: #f4f7f3;
   padding: calc(24px + var(--safe-t)) max(16px, var(--safe-r)) calc(24px + var(--safe-b)) max(16px, var(--safe-l)); }
 .t-wrap { width: min(560px, 100%); margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
-.t-logo { font-family: var(--font-story); font-size: clamp(40px, 11vw, 64px); line-height: 1; margin: 8vh 0 0; letter-spacing: .01em; }
+.t-logo { text-shadow: 0 2px 18px rgba(0,0,0,0.45); font-family: var(--font-story); font-size: clamp(40px, 11vw, 64px); line-height: 1; margin: 8vh 0 0; letter-spacing: .01em; }
 .t-logo span { color: var(--marigold); }
 .t-sub { font-size: 14px; letter-spacing: .1em; opacity: .8; }
 .t-tag { font-family: var(--font-story); font-size: 18px; line-height: 1.6; opacity: .95; margin: 6px 0 10px; }

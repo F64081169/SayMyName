@@ -68,10 +68,10 @@
       legs.push(pivot);
     }
     const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.32, 6, 14), outfit);
-    torso.scale.set(1.18, 1, 0.72); torso.position.y = hipY + 0.27; torso.castShadow = true; body.add(torso);
+    torso.scale.set(1.28, 1, 0.74); torso.position.y = hipY + 0.27; torso.castShadow = true; body.add(torso);
     const hips = new THREE.Mesh(BG(0.32, 0.14, 0.2), pants); hips.position.y = hipY + 0.02; body.add(hips);
     const arms = [];
-    for (const sx of [-0.235, 0.235]) {
+    for (const sx of [-0.25, 0.25]) {
       const pivot = new THREE.Group(); pivot.position.set(sx, hipY + 0.52, 0); body.add(pivot);
       const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.42, 4, 8), outfit); arm.position.y = -0.27; arm.castShadow = true; pivot.add(arm);
       const hand = new THREE.Mesh(SG(0.045), skin); hand.position.y = -0.55; pivot.add(hand);

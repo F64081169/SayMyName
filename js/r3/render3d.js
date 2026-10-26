@@ -487,33 +487,7 @@
     const hour = T.mod() / 60, dark = T.dark();
     // lighting
     if (rec.outdoor) {
-      const sk = skyAt(hour);
-      rec.skyObj.mat.uniforms.top.value.copy(sk.top); rec.skyObj.mat.uniforms.horizon.value.copy(sk.horizon);
-      scene.fog.color.copy(sk.horizon);
-      const day = hour > 5.5 && hour < 19.2;
-      const ang = day ? (hour - 6) / 13 * Math.PI : ((hour + 24 - 19.2) % 24) / 10.3 * Math.PI;
-      const el = Math.max(0.12, Math.sin(ang) * (day ? 1.15 : 0.8));
-      const dir = tmpV.set(Math.cos(ang) * 0.75, el, 0.45).normalize();
-      rec.sun.position.set(p.x + dir.x * 80, dir.y * 80, p.y + dir.z * 80); rec.sun.target.position.set(p.x, 0, p.y);
-      rec.sun.color.copy(sk.sun); rec.sun.intensity = sk.sunI;
-      rec.hemi.intensity = sk.hemiI; rec.hemi.color.copy(sk.top).lerp(new THREE.Color('#ffffff'), 0.55);
-      rec.skyObj.sun.position.copy(camera.position).addScaledVector(dir, 400); rec.skyObj.sun.material.color.copy(sk.sun); rec.skyObj.sun.scale.setScalar(day ? 60 : 30);
-      rec.skyObj.stars.material.opacity = U.clamp((dark - 0.3) * 2.5, 0, 0.9);
-      rec.skyObj.sky.position.copy(camera.position); rec.skyObj.stars.position.copy(camera.position);
-      const glow = 0.08 + dark * 1.9;
-      for (const mm of rec.emissives) mm.emissiveIntensity = glow;
-      for (const mm of rec.signs) mm.emissiveIntensity = 0.15 + dark * 1.4;
-      rec.lampHead.emissiveIntensity = dark > 0.25 ? 2.2 : 0.05; rec.lampPool.opacity = U.clamp((dark - 0.2) * 1.6, 0, 0.75);
-      const open = hour >= 17 || hour < 0.5;
-      rec.lanterns.emissiveIntensity = open ? 0.35 + dark * 0.9 : 0.05;
-      rec.marketPool.opacity = open ? 0.25 + dark * 0.6 : 0;
-      for (const v of rec.vendors) v.visible = open;
-      for (const id of Object.keys(rec.objs)) { const g = rec.objs[id]; if (g.userData.bulb) g.userData.bulb.emissiveIntensity = open ? 1 + dark * 2 : 0; if (g.userData.signMat) g.userData.signMat.emissiveIntensity = open ? 0.3 + dark * 1.2 : 0.05; }
-      if (rec.waterTex) { rec.waterTex.offset.x += dt * 0.004; rec.waterTex.offset.y += dt * 0.002; }
-      renderer.toneMappingExposure = 1.05 + dark * 0.35;
-      updateTraffic(rec, dt);
-      updatePeds(rec, dt);
-      if (rec.kite) { const t = performance.now() / 1000; rec.kite.position.set(54 + Math.sin(t * 0.4) * 2, 16 + Math.sin(t * 0.7) * 1.2, 101 + Math.cos(t * 0.3) * 2); rec.kite.rotation.y = Math.sin(t * 0.5) * 0.4; const a = rec.kiteStr.geometry.attributes.position; a.setXYZ(0, 50.9, 1.35, 89.2); a.setXYZ(1, rec.kite.position.x, rec.kite.position.y - 0.5, rec.kite.position.z); a.needsUpdate = true; }
+      lightOutdoor(rec, hour, dark, p.x, p.y, dt, p);
     } else {
       const sk = skyAt(hour); if (rec.winMat) rec.winMat.color.copy(sk.horizon).lerp(sk.top, 0.3);
       if (rec.doorGlow) rec.doorGlow.color.copy(sk.horizon).lerp(new THREE.Color('#fff3dc'), 0.4);
@@ -569,8 +543,38 @@
     mmT -= dt; if (mmT <= 0) { mmT = 0.2; R3.drawMinimap(); }
   };
 
-  function updateTraffic(rec, dt) {
-    const p = SW.S.p;
+  function lightOutdoor(rec, hour, dark, px, pz, dt, player) {
+    const scene = rec.scene;
+      const sk = skyAt(hour);
+      rec.skyObj.mat.uniforms.top.value.copy(sk.top); rec.skyObj.mat.uniforms.horizon.value.copy(sk.horizon);
+      scene.fog.color.copy(sk.horizon);
+      const day = hour > 5.5 && hour < 19.2;
+      const ang = day ? (hour - 6) / 13 * Math.PI : ((hour + 24 - 19.2) % 24) / 10.3 * Math.PI;
+      const el = Math.max(0.12, Math.sin(ang) * (day ? 1.15 : 0.8));
+      const dir = tmpV.set(Math.cos(ang) * 0.75, el, 0.45).normalize();
+      rec.sun.position.set(px + dir.x * 80, dir.y * 80, pz + dir.z * 80); rec.sun.target.position.set(px, 0, pz);
+      rec.sun.color.copy(sk.sun); rec.sun.intensity = sk.sunI;
+      rec.hemi.intensity = sk.hemiI; rec.hemi.color.copy(sk.top).lerp(new THREE.Color('#ffffff'), 0.55);
+      rec.skyObj.sun.position.copy(camera.position).addScaledVector(dir, 400); rec.skyObj.sun.material.color.copy(sk.sun); rec.skyObj.sun.scale.setScalar(day ? 60 : 30);
+      rec.skyObj.stars.material.opacity = U.clamp((dark - 0.3) * 2.5, 0, 0.9);
+      rec.skyObj.sky.position.copy(camera.position); rec.skyObj.stars.position.copy(camera.position);
+      const glow = 0.08 + dark * 1.9;
+      for (const mm of rec.emissives) mm.emissiveIntensity = glow;
+      for (const mm of rec.signs) mm.emissiveIntensity = 0.15 + dark * 1.4;
+      rec.lampHead.emissiveIntensity = dark > 0.25 ? 2.2 : 0.05; rec.lampPool.opacity = U.clamp((dark - 0.2) * 1.6, 0, 0.75);
+      const open = hour >= 17 || hour < 0.5;
+      rec.lanterns.emissiveIntensity = open ? 0.35 + dark * 0.9 : 0.05;
+      rec.marketPool.opacity = open ? 0.25 + dark * 0.6 : 0;
+      for (const v of rec.vendors) v.visible = open;
+      for (const id of Object.keys(rec.objs)) { const g = rec.objs[id]; if (g.userData.bulb) g.userData.bulb.emissiveIntensity = open ? 1 + dark * 2 : 0; if (g.userData.signMat) g.userData.signMat.emissiveIntensity = open ? 0.3 + dark * 1.2 : 0.05; }
+      if (rec.waterTex) { rec.waterTex.offset.x += dt * 0.004; rec.waterTex.offset.y += dt * 0.002; }
+      renderer.toneMappingExposure = 1.05 + dark * 0.35;
+      updateTraffic(rec, dt, player);
+      updatePeds(rec, dt);
+      if (rec.kite) { const t = performance.now() / 1000; rec.kite.position.set(54 + Math.sin(t * 0.4) * 2, 16 + Math.sin(t * 0.7) * 1.2, 101 + Math.cos(t * 0.3) * 2); rec.kite.rotation.y = Math.sin(t * 0.5) * 0.4; const a = rec.kiteStr.geometry.attributes.position; a.setXYZ(0, 50.9, 1.35, 89.2); a.setXYZ(1, rec.kite.position.x, rec.kite.position.y - 0.5, rec.kite.position.z); a.needsUpdate = true; }
+  }
+  function updateTraffic(rec, dt, p) {
+    p = p || { x: -999, y: -999, map: '' };
     for (const v of rec.vehicles) {
       const ln = v.ln;
       const along = ln.vert ? v.pos : v.pos;
@@ -587,6 +591,16 @@
     }
   }
   const PED_SPOTS = [[10, 42], [40, 42], [70, 42], [100, 42], [115, 53], [80, 53], [50, 53], [20, 53], [22, 70], [36, 72], [91, 60], [92, 72], [30, 76], [70, 76], [100, 76], [20, 89], [60, 89], [95, 89], [56, 20], [65, 30], [20, 36], [80, 39]];
+  R3.backdrop = function (dt) {
+    if (!renderer) return;
+    const rec = R3.sceneFor('city'); cur = rec;
+    R3._bd = (R3._bd || 0) + dt;
+    const t = R3._bd, x = 4 + (t * 1.1) % 104;
+    camera.position.set(x, 1.65, 41.5); camera.rotation.set(0.03, -1.35 + Math.sin(t * 0.15) * 0.22, 0);
+    lightOutdoor(rec, 18.15, 0.25, x, 41.5, dt, null);
+    updatePeds(rec, dt);
+    renderer.render(rec.scene, camera);
+  };
   function updatePeds(rec, dt) {
     const m = rec.map;
     for (const pd of rec.peds) {
@@ -657,6 +671,25 @@
     const t = -ray.ray.origin.y / ray.ray.direction.y;
     if (t > 0 && t < 60) { const gx = ray.ray.origin.x + ray.ray.direction.x * t, gz = ray.ray.origin.z + ray.ray.direction.z * t; return { type: 'ground', x: gx, y: gz }; }
     return null;
+  };
+  // small turntable preview of a look (character creation, wardrobe)
+  R3.preview = function (canvas, look) {
+    const pr = canvas._pr || (canvas._pr = (() => {
+      const rr = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      rr.outputEncoding = THREE.sRGBEncoding; rr.toneMapping = THREE.ACESFilmicToneMapping; rr.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      rr.setSize(canvas.clientWidth || 192, canvas.clientHeight || 192, false);
+      const sc = new THREE.Scene();
+      sc.add(new THREE.HemisphereLight(0xffffff, 0x556655, 0.9));
+      const dl = new THREE.DirectionalLight(0xfff1dc, 0.9); dl.position.set(2, 4, 3); sc.add(dl);
+      const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 20); cam.position.set(0, 1.05, 4.2); cam.lookAt(0, 0.95, 0);
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.04, 32), M('#2f8f83', { roughness: 0.6 })); disc.position.y = -0.02; sc.add(disc);
+      const o = { rr, sc, cam, h: null, t: 0, alive: true };
+      const loop = () => { if (!canvas.isConnected) { o.alive = false; rr.dispose(); return; } o.t += 0.016; if (o.h) { o.h.rotation.y = Math.sin(o.t * 0.8) * 0.6; MD.animHuman(o.h, 0.016, false); } rr.render(sc, cam); requestAnimationFrame(loop); };
+      requestAnimationFrame(loop);
+      return o;
+    })());
+    if (pr.h) pr.sc.remove(pr.h);
+    pr.h = MD.human(Object.assign({}, look), { height: 1.65, pants: '#2c3446' }); pr.sc.add(pr.h);
   };
   R3.focus = function (who) { R3.focusId = who && SW.CH[who] ? who : null; };
 

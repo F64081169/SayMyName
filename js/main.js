@@ -13,7 +13,7 @@
 
   function lookEditor(look, onChange) {
     const sw = (arr, key) => `<div class="swatches">${arr.map((c) => `<button data-k="${key}" data-v="${c}" class="${look[key] === c ? 'on' : ''}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div>`;
-    const html = `<div style="display:flex;justify-content:center"><canvas id="avatar-prev" width="192" height="192"></canvas></div>
+    const html = `<div style="display:flex;justify-content:center"><canvas id="avatar-prev" width="220" height="260" style="width:180px;height:212px"></canvas></div>
       <div><label class="lab">髮型</label><div class="chips">${STYLES.map(([v, l]) => `<button data-k="style" data-v="${v}" class="${look.style === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       <div><label class="lab">髮色</label>${sw(HAIR, 'hair')}</div>
       <div><label class="lab">膚色</label>${sw(SKIN, 'skin')}</div>
@@ -22,7 +22,7 @@
     return {
       html,
       bind(root) {
-        const draw = () => { const c = root.querySelector('#avatar-prev'); const g = c.getContext('2d'); g.clearRect(0, 0, 192, 192); W.drawChar(g, 96, 112, 150, look, {}); };
+        const draw = () => { const c = root.querySelector('#avatar-prev'); try { SW.R3.preview(c, look); } catch (e) { const g = c.getContext('2d'); g.clearRect(0, 0, 192, 192); W.drawChar(g, 96, 112, 150, look, {}); } };
         root.querySelectorAll('[data-k]').forEach((b) => {
           b.onclick = () => { look[b.dataset.k] = b.dataset.v; root.querySelectorAll(`[data-k="${b.dataset.k}"]`).forEach((x) => x.classList.toggle('on', x === b)); draw(); if (onChange) onChange(); };
         });
@@ -137,6 +137,8 @@
       W.target = busy ? null : W.nearest();
       SW.R3.render(dt);
       UI.hud(dt);
+    } else if (!$('title').hidden && !document.hidden) {
+      try { SW.R3.backdrop(dt); } catch (e) { /* title still works without the 3D backdrop */ }
     }
     requestAnimationFrame(loop);
   }
@@ -158,5 +160,6 @@
     SW.R3.init($('game'));
     SW.IN.init();
     Main.title();
+    if (!Main.loopOn) { Main.loopOn = true; requestAnimationFrame(loop); }
   });
 })(window.SW);
