@@ -70,6 +70,7 @@
     const near = Acts.others(id).filter((o) => SW.CH[o].core || o === 'zhe' || o === 'landlord');
     const items = [
       story ? { icon: '💬', t: story.label || `${ch.name}好像有話想說`, sub: '劇情', v: 'story', hot: true } : null,
+      SW.Human.canDrunkTalk(id) ? { icon: '🍷', t: '酒後真心話', sub: '微醺的時候，有些話比較說得出口', v: 'drunk', hot: true } : null,
       id === 'pei' && st.f.cafeEmptied && /顧店|幫老蔡/.test(n.act || '') ? { icon: '☕', t: '跟小沛點一杯拿鐵', sub: 'NT$80・+體力', v: 'coffee' } : null,
       { icon: '🗨️', t: '聊天', sub: '聊聊近況', v: 'talk' },
       { icon: '😂', t: '開玩笑', sub: '冷笑話／吐槽／自嘲', v: 'joke' },
@@ -90,6 +91,7 @@
     if (!v) return;
     switch (v) {
       case 'story': return SW.Dir.run(story);
+      case 'drunk': return SW.Human.drunkTalk(id);
       case 'coffee':
         if (!Sys.pay(80)) return;
         Sys.energy(14); st.cafe.fund += 80;
@@ -368,6 +370,7 @@
     });
     st.p.follower = null;
     if (opt.promise) Sched.clearOv(opt.promise);
+    if (opt.romantic) SW.Human.afterDate(id);
     const first = !Sys.hasMem(id, 'joint_' + actId);
     Sys.ch(id, { friend: 4 + (result > 70 ? 2 : 0), comfort: 4, attract: opt.romantic ? 4 : 0, tension: -3 });
     Sys.mem(id, `和${nm(id)}一起${A.name}${opt.romantic ? '（約會）' : ''}`, 1, 'joint_' + actId, !first);
@@ -418,6 +421,7 @@
     },
     dinner: async (id, opt) => {
       const v = await choose([{ t: '你決定菜單', v: 'me' }, { t: `讓${nm(id)}點`, v: 'them' }, { t: '一起看菜單討論', v: 'both' }]);
+      Sys.drink();
       const pr = 520; if (!Sys.pay(pr)) await say(id, '欸，你的卡刷不過？沒關係，這頓我先付，下次換你請。');
       if (v === 'me') await say(id, SW.S.rel[id].comfort > 55 ? '你點的都是我愛吃的欸。你是不是偷偷觀察我？' : '嗯……也可以啦。');
       else if (v === 'them') await say(id, '那我要點炸物拼盤、鹹酥雞沙拉，還有……兩杯好日子特調！');
@@ -428,6 +432,9 @@
         if (t === 'you') Sys.ch(id, { attract: 3 }, true);
       }
       Sys.energy(20);
+      if (SW.CH[id].core && T.mod() >= 18 * 60 && !S().f['drunkTalk_' + id] && (await choose([{ t: '「再點一輪？」', v: 1 }, { t: '「差不多了，今天到這裡。」', v: 0 }]))) {
+        Sys.drink(); await SW.Human.drunkTalk(id);
+      }
       return 70;
     },
     gym: async (id) => {

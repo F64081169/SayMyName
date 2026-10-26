@@ -118,7 +118,7 @@
   };
   Sys.breakP = function (id) {
     const p = Sys.pending(id); if (!p) return false;
-    p.status = 'broken'; p.done = S().t; S().stats.broken++;
+    p.status = 'broken'; p.done = S().t; S().stats.broken++; p.where = S().p.map;
     const r = Sys.rel(p.who);
     if (r) Sys.ch(p.who, { trust: -(p.weight || 10), tension: Math.round((p.weight || 10) * 0.8), friend: -3 }, true);
     Sys.mem(p.who, p.breakText || `你答應「${p.text}」，最後卻沒出現`, -1, 'broke_' + p.id, true);
@@ -179,6 +179,68 @@
     for (const q of due) { if (H[q.k]) { try { H[q.k](q.d); } catch (e) { console.error('queue', q.k, e); } } }
   };
 
+  // ---------- sightings: who saw the player where (the raw material of witnesses) ----------
+  Sys.sight = function () {
+    const st = S(), L = st.seen || (st.seen = []);
+    const who = SW.W.npcsHere().filter((id) => st.p.map !== 'city' || SW.W.distTo(id) < 25);
+    const last = L[L.length - 1];
+    if (last && last.map === st.p.map && st.t - last.to < 15) { last.to = st.t; for (const id of who) if (!last.who.includes(id)) last.who.push(id); return; }
+    L.push({ t: st.t, to: st.t, map: st.p.map, who });
+    while (L.length && st.t - L[0].to > 4 * 1440) L.shift();
+  };
+  // what a witness must have seen to contradict a story
+  const PRED = { notHome: (m) => m !== 'home', notOffice: (m) => m !== 'office', any: () => true };
+  Sys.witnesses = function (from, to, pred) {
+    const out = new Set(), f = PRED[pred] || PRED.any;
+    for (const e of S().seen || []) if (e.to >= from && e.t <= to && f(e.map)) for (const id of e.who) out.add(id);
+    return [...out];
+  };
+  Sys.wasAt = (from, to, pred) => (S().seen || []).some((e) => e.to >= from && e.t <= to && (PRED[pred] || PRED.any)(e.map));
+
+  // ---------- lies ----------
+  // A lie is believed until someone it was told to spends time with someone who knows the truth.
+  // o: { id, to, text, w: [static witnesses], win: [from, to], pred, weight, chance, kind, victim }
+  Sys.lie = function (o) {
+    const st = S(), L = st.lies || (st.lies = []);
+    const lie = Object.assign({ t: st.t, exposed: null, resolved: null, doubled: 0, weight: 10, chance: 0.2, w: [] }, o);
+    lie.to = [].concat(lie.to);
+    L.push(lie);
+    st.stats.lies = (st.stats.lies || 0) + 1;
+    if (lie.kind === 'white') st.stats.whiteLies = (st.stats.whiteLies || 0) + 1;
+    return lie;
+  };
+  Sys.lieWitnesses = (l) => [...new Set(l.w.concat(l.win ? Sys.witnesses(l.win[0], l.win[1], l.pred) : []))].filter((x) => !l.to.includes(x)); // a scapegoat is the best witness there is
+  Sys.openLies = (id) => (S().lies || []).filter((l) => l.to.includes(id) && !l.exposed && !l.resolved);
+  Sys.checkLies = function () {
+    const st = S();
+    for (const l of st.lies || []) {
+      if (l.exposed || l.resolved || l.kind === 'white') continue;
+      const ws = Sys.lieWitnesses(l);
+      for (const to of l.to) {
+        const n = st.n[to]; if (!n || n.map === 'away') continue;
+        const w = ws.find((x) => st.n[x] && st.n[x].map === n.map);
+        if (!w) continue;
+        const talk = SW.CH[w].gossip !== undefined ? 0.5 + SW.CH[w].gossip : 0.8;
+        if (Math.random() < l.chance * talk * (1 + l.doubled * 0.5)) { Sys.expose(l, to, w); break; }
+      }
+    }
+  };
+  Sys.expose = function (l, to, by) {
+    const st = S();
+    l.exposed = { to, by, t: st.t };
+    const w = Math.round(l.weight * (1 + l.doubled * 0.6));
+    if (st.rel[to]) Sys.ch(to, { trust: -w, tension: Math.round(w * 0.8) }, true);
+    else if (to === 'boss') st.work.bossTrust -= Math.round(w * 0.8);
+    if (l.victim && st.rel[l.victim]) { Sys.ch(l.victim, { trust: -12, tension: 12 }, true); Sys.mem(l.victim, `你把責任推到${nm(l.victim)}身上`, -1, 'blamed_' + l.id, true); Sys.pch(to, l.victim, { tension: -8 }); }
+    Sys.mem(to, `發現你說謊：${l.text}`, -1, 'lie_' + l.id, true);
+    st.stats.exposed = (st.stats.exposed || 0) + 1;
+    UI.toast(`👀 ${nm(by)}和${nm(to)}聊天的時候，好像提到了你……`, 'warn');
+  };
+
+  // ---------- drinking ----------
+  Sys.drink = function () { const k = 'drinks_' + T.day(); S().f[k] = (S().f[k] || 0) + 1; Sys.energy(-3); if (S().f[k] === 2) UI.toast('🍷 你有點微醺了。話好像比較容易說出口。', 'love'); };
+  Sys.tipsy = () => (S().f['drinks_' + T.day()] || 0) + (T.mod() < 5 * 60 ? (S().f['drinks_' + (T.day() - 1)] || 0) : 0);
+
   // ---------- player stats ----------
   Sys.energy = (d) => { const p = S().p; p.energy = U.clamp(p.energy + d, 0, 100); };
   Sys.mood = (d) => { const p = S().p; p.mood = U.clamp(p.mood + d, 0, 100); };
@@ -200,6 +262,7 @@
     SW.W.updateNPCs(mins, instant);
     Sys.processQueue();
     Sys.checkPromises();
+    Sys.sight();
     const hr = Math.floor(st.t / 60);
     if (lastHour !== null && hr !== lastHour) { Sys.hourly(); }
     lastHour = hr;
@@ -207,6 +270,7 @@
   Sys.hourly = function () {
     const st = S();
     Sys.spreadGossip();
+    Sys.checkLies();
     // NPCs spending time together drift closer (or further)
     const here = {};
     for (const id of SW.CORE) { const n = st.n[id]; if (n.map !== 'away') (here[n.map] = here[n.map] || []).push(id); }

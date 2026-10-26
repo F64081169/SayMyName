@@ -128,11 +128,13 @@
     const mems = Sys.memsOf(id).slice().reverse();
     const proms = st.prom.filter((p) => p.who === id).slice(-6).reverse();
     const facts = Object.keys(st.knows.player).filter((f) => SW.FACTS[f].owner === id || (f === 'rumorLele' && (id === 'hsiu' || id === 'lele')));
+    const lies = (st.lies || []).filter((l) => l.to.includes(id));
     const pairs = SW.CORE.filter((o) => o !== id).map((o) => [o, SW.Talk.pairWord(id, o)]).filter(([, w]) => w);
     const tags = Sys.tiers(id).map(([t, c]) => `<span class="tag ${c}">${t}</span>`).join('');
     const html = `<div class="prof">${av(id).replace('class="av"', 'class="av" style="width:64px;height:64px;font-size:28px;margin:0 auto;background:' + ch.color + '"')}<div class="h" style="margin-top:8px">${U.esc(ch.name)}${ch.age ? `・${ch.age}歲` : ''}</div><div class="muted">${U.esc(ch.job)}</div><p style="font-size:13.5px;line-height:1.6;text-align:left">${U.esc(ch.bio || '')}</p><div>${tags}</div></div>
       <div class="card-sec"><h4>你們的共同回憶（${mems.length}）</h4>${mems.length ? `<ul>${mems.slice(0, 12).map((m) => `<li>${m.tone > 0 ? '💚' : m.tone < 0 ? '💢' : '・'} <b>${T.dayName(Math.floor(m.t / 1440) + 1)}</b> ${U.esc(m.text)}</li>`).join('')}</ul>` : '<p class="muted">還沒有。去認識對方吧。</p>'}</div>
       ${proms.length ? `<div class="card-sec"><h4>約定</h4><ul>${proms.map((p) => `<li>${{ pending: '⏳', kept: '✅', broken: '💔', cancelled: '↩️' }[p.status]} ${U.esc(SW.tx(p.text))}（${T.rel(p.from)}）</li>`).join('')}</ul></div>` : ''}
+      ${lies.length ? `<div class="card-sec"><h4>你對${U.esc(ch.name)}說過的謊</h4><ul>${lies.map((l) => `<li>${l.kind === 'white' ? '🤍' : l.resolved === 'confess' ? '🙏' : l.exposed || l.resolved ? '💥' : '🤫'} ${U.esc(l.text)}<small class="muted">${l.kind === 'white' ? '・善意的謊' : l.resolved === 'confess' ? '・你承認了' : l.exposed || l.resolved ? '・被拆穿了' : '・對方還相信著'}</small></li>`).join('')}</ul></div>` : ''}
       ${facts.length ? `<div class="card-sec"><h4>你知道的事</h4><ul>${facts.map((f) => `<li>${SW.FACTS[f].false ? '❓' : '🔒'} ${U.esc(SW.FACTS[f].text)}</li>`).join('')}</ul></div>` : ''}
       ${pairs.length ? `<div class="card-sec"><h4>你感覺到的人際關係</h4><ul>${pairs.map(([o, w]) => `<li>${U.esc(ch.name)} ↔ ${U.esc(nm(o))}：${U.esc(w)}</li>`).join('')}</ul></div>` : ''}
       <div class="card-sec"><h4>對方在意的事</h4><p>${U.esc(ch.values || '還不太了解。')}</p></div>`;

@@ -44,6 +44,7 @@
     coach: { name: '大熊教練', job: '健身教練', color: '#c25a3a', look: { hair: '#111', style: 'short', skin: '#c99266', outfit: '#d0453a', acc: 'none' } },
     pastor: { name: '葉牧師', job: '光鹽教會牧師', color: '#6d7f5b', look: { hair: '#bbb', style: 'short', skin: '#edc39c', outfit: '#55684a', acc: 'none' } },
     landlord: { name: '陳伯', job: '轉角咖啡廳的房東', color: '#8b7d6b', look: { hair: '#ddd', style: 'bald', skin: '#e4b88f', outfit: '#7a6e5c', acc: 'none' } },
+    vivian: { name: 'Vivian', job: 'Bloom Coffee 展店經理', color: '#1f3b5c', look: { hair: '#2b2b33', style: 'bob', skin: '#f3d3b8', outfit: '#1f3b5c', acc: 'none' } },
     zhe: { name: '阿哲', job: '樂樂的男友（暫時）', color: '#6b6b8f', look: { hair: '#222', style: 'short', skin: '#e9c19c', outfit: '#3c3c5a', acc: 'none' } },
     kai: {
       name: 'Kai', age: 28, job: '自由接案攝影師', color: '#3b8ea5', date: true,
@@ -88,6 +89,13 @@
     ansonTired: { text: '安森最近累到快撐不住，但一直說自己沒事', owner: 'anson', short: '安森快累垮了' },
     ansonPei: { text: '安森好像一直默默喜歡小沛', owner: 'anson', secret: true, short: '安森喜歡小沛' },
     fish: { text: '有人在公司茶水間微波鯖魚，整層樓都知道了', owner: null, short: '茶水間鯖魚事件' },
+    // what people only say after the second drink
+    miraEscape: { text: '米拉說，她想去澳洲，其實是想知道如果她消失了，會不會有人來找她', owner: 'mira', secret: true, short: '米拉真正想逃開的東西' },
+    hsiuDad: { text: '阿修想當 Feature Owner，是因為他爸到現在還跟親戚說他在「電子廠上班」', owner: 'hsiu', secret: true, short: '阿修和他爸爸' },
+    peiPromise: { text: '小沛顧著轉角，是因為答應過過世的外婆不讓這個轉角空掉', owner: 'pei', secret: true, short: '小沛對外婆的承諾' },
+    ansonUseful: { text: '安森覺得，大家喜歡他只是因為他有用', owner: 'anson', secret: true, short: '安森害怕自己沒有用' },
+    leleFault: { text: '樂樂和阿哲分手，其實是她先在心裡喜歡上別人', owner: 'lele', secret: true, short: '樂樂分手的真相' },
+    affair: { text: '{N}有另一半，卻還跟別人約會', owner: null, secret: true, short: '你的秘密約會' },
   };
 
   // ---------- schedules ----------
@@ -180,6 +188,7 @@
       B([4], '16:00', '21:00', 'church', 'kitchen2', '準備社區愛宴'),
       B([6], '09:00', '13:00', 'church', 'pulpit2', '主日講道'),
     ],
+    vivian: [B(ALL, '00:00', '24:00', 'away', null, '')],
     landlord: [B(ALL, '00:00', '24:00', 'away', null, ''), B([5], '13:50', '16:00', 'cafe', 't5', '和小沛談租約', { day: 6 })],
     zhe: [B(ALL, '00:00', '24:00', 'away', null, ''), B([1], '19:30', '20:40', 'bar', 'booth1b', '和樂樂吃飯', { day: 2 })],
     kai: [B(ALL, '00:00', '24:00', 'away', null, '')],

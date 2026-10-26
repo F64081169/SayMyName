@@ -435,7 +435,7 @@
 
   // ===== BAR =====
   OBJ.barCounter = () => [
-    { icon: '🍸', t: '點一杯好日子特調', sub: 'NT$250・+心情', v: 'drink', run: async () => { if (!Sys.pay(250)) return; Sys.mood(10); Sys.energy(-4); if (here('tsai')) await SW.scene(async () => { await say('tsai', U.pick(['特調一杯。今天看起來需要雙倍的「好日子」。', '慢慢喝。這杯的名字叫「明天再說」。', '你的臉寫著「上班好累」，我幫你多加了一點檸檬。'])); }); else UI.toast('🍸 微酸、微甜、很好日子。'); } },
+    { icon: '🍸', t: '點一杯好日子特調', sub: 'NT$250・+心情', v: 'drink', run: async () => { if (!Sys.pay(250)) return; Sys.mood(10); Sys.drink(); if (here('tsai')) await SW.scene(async () => { await say('tsai', U.pick(['特調一杯。今天看起來需要雙倍的「好日子」。', '慢慢喝。這杯的名字叫「明天再說」。', '你的臉寫著「上班好累」，我幫你多加了一點檸檬。'])); }); else UI.toast('🍸 微酸、微甜、很好日子。'); } },
     here('tsai') ? { icon: '🧔', t: '跟老蔡聊天', sub: '他看過太多人的故事', v: 'tsai', run: () => SW.Acts.minor('tsai') } : null,
   ];
   OBJ.jukebox = () => [{ icon: '🎵', t: '點一首歌', sub: 'NT$20', v: 'song', run: async () => {

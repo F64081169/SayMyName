@@ -48,7 +48,7 @@
       },
       rel: JSON.parse(JSON.stringify(BASE_REL)),
       pairs: JSON.parse(JSON.stringify(BASE_PAIRS)),
-      n: {}, knows: { player: {} }, mem: [], prom: [], f: {}, fired: {}, fc: {}, q: [], ov: [],
+      n: {}, knows: { player: {} }, mem: [], prom: [], f: {}, fired: {}, fc: {}, q: [], ov: [], lies: [], seen: [],
       msgs: {}, unread: {}, log: [],
       work: { bossTrust: 50, perf: 0, legend: 0, warn: 0, hsiuScore: 50, bugsDone: [] },
       cafe: { fund: 40000, need: 150000, will: 50, plan: null, partner: null, petition: 0, promo: 0, crowd: 0, gig: 0, cut: 0, outcome: null, vouchers: 0 },
@@ -82,7 +82,13 @@
     } catch (e) { return false; }
   };
   SW.loadSave = function () {
-    try { const raw = localStorage.getItem(SW.SAVE_KEY); if (!raw) return null; const s = JSON.parse(raw); return s && s.v === SW.VERSION ? s : null; } catch (e) { return null; }
+    try { const raw = localStorage.getItem(SW.SAVE_KEY); if (!raw) return null; const s = JSON.parse(raw); return s && s.v === SW.VERSION ? SW.migrate(s) : null; } catch (e) { return null; }
+  };
+  // fill in anything newer than the save (new characters, new systems)
+  SW.migrate = function (s) {
+    for (const id of Object.keys(SW.CH)) { s.knows[id] = s.knows[id] || {}; s.n[id] = s.n[id] || { map: 'away', x: 0, y: 0, act: '', mood: 60, energy: 80 }; if (BASE_REL[id] && !s.rel[id]) s.rel[id] = Object.assign({}, BASE_REL[id]); }
+    s.lies = s.lies || []; s.seen = s.seen || [];
+    return s;
   };
   SW.clearSave = function () { try { localStorage.removeItem(SW.SAVE_KEY); } catch (e) { /* storage blocked */ } };
 

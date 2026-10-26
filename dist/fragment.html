@@ -403,6 +403,7 @@ window.SW = window.SW || {};
     coach: { name: '大熊教練', job: '健身教練', color: '#c25a3a', look: { hair: '#111', style: 'short', skin: '#c99266', outfit: '#d0453a', acc: 'none' } },
     pastor: { name: '葉牧師', job: '光鹽教會牧師', color: '#6d7f5b', look: { hair: '#bbb', style: 'short', skin: '#edc39c', outfit: '#55684a', acc: 'none' } },
     landlord: { name: '陳伯', job: '轉角咖啡廳的房東', color: '#8b7d6b', look: { hair: '#ddd', style: 'bald', skin: '#e4b88f', outfit: '#7a6e5c', acc: 'none' } },
+    vivian: { name: 'Vivian', job: 'Bloom Coffee 展店經理', color: '#1f3b5c', look: { hair: '#2b2b33', style: 'bob', skin: '#f3d3b8', outfit: '#1f3b5c', acc: 'none' } },
     zhe: { name: '阿哲', job: '樂樂的男友（暫時）', color: '#6b6b8f', look: { hair: '#222', style: 'short', skin: '#e9c19c', outfit: '#3c3c5a', acc: 'none' } },
     kai: {
       name: 'Kai', age: 28, job: '自由接案攝影師', color: '#3b8ea5', date: true,
@@ -447,6 +448,13 @@ window.SW = window.SW || {};
     ansonTired: { text: '安森最近累到快撐不住，但一直說自己沒事', owner: 'anson', short: '安森快累垮了' },
     ansonPei: { text: '安森好像一直默默喜歡小沛', owner: 'anson', secret: true, short: '安森喜歡小沛' },
     fish: { text: '有人在公司茶水間微波鯖魚，整層樓都知道了', owner: null, short: '茶水間鯖魚事件' },
+    // what people only say after the second drink
+    miraEscape: { text: '米拉說，她想去澳洲，其實是想知道如果她消失了，會不會有人來找她', owner: 'mira', secret: true, short: '米拉真正想逃開的東西' },
+    hsiuDad: { text: '阿修想當 Feature Owner，是因為他爸到現在還跟親戚說他在「電子廠上班」', owner: 'hsiu', secret: true, short: '阿修和他爸爸' },
+    peiPromise: { text: '小沛顧著轉角，是因為答應過過世的外婆不讓這個轉角空掉', owner: 'pei', secret: true, short: '小沛對外婆的承諾' },
+    ansonUseful: { text: '安森覺得，大家喜歡他只是因為他有用', owner: 'anson', secret: true, short: '安森害怕自己沒有用' },
+    leleFault: { text: '樂樂和阿哲分手，其實是她先在心裡喜歡上別人', owner: 'lele', secret: true, short: '樂樂分手的真相' },
+    affair: { text: '{N}有另一半，卻還跟別人約會', owner: null, secret: true, short: '你的秘密約會' },
   };
 
   // ---------- schedules ----------
@@ -539,6 +547,7 @@ window.SW = window.SW || {};
       B([4], '16:00', '21:00', 'church', 'kitchen2', '準備社區愛宴'),
       B([6], '09:00', '13:00', 'church', 'pulpit2', '主日講道'),
     ],
+    vivian: [B(ALL, '00:00', '24:00', 'away', null, '')],
     landlord: [B(ALL, '00:00', '24:00', 'away', null, ''), B([5], '13:50', '16:00', 'cafe', 't5', '和小沛談租約', { day: 6 })],
     zhe: [B(ALL, '00:00', '24:00', 'away', null, ''), B([1], '19:30', '20:40', 'bar', 'booth1b', '和樂樂吃飯', { day: 2 })],
     kai: [B(ALL, '00:00', '24:00', 'away', null, '')],
@@ -1000,7 +1009,7 @@ window.SW = window.SW || {};
       },
       rel: JSON.parse(JSON.stringify(BASE_REL)),
       pairs: JSON.parse(JSON.stringify(BASE_PAIRS)),
-      n: {}, knows: { player: {} }, mem: [], prom: [], f: {}, fired: {}, fc: {}, q: [], ov: [],
+      n: {}, knows: { player: {} }, mem: [], prom: [], f: {}, fired: {}, fc: {}, q: [], ov: [], lies: [], seen: [],
       msgs: {}, unread: {}, log: [],
       work: { bossTrust: 50, perf: 0, legend: 0, warn: 0, hsiuScore: 50, bugsDone: [] },
       cafe: { fund: 40000, need: 150000, will: 50, plan: null, partner: null, petition: 0, promo: 0, crowd: 0, gig: 0, cut: 0, outcome: null, vouchers: 0 },
@@ -1034,7 +1043,13 @@ window.SW = window.SW || {};
     } catch (e) { return false; }
   };
   SW.loadSave = function () {
-    try { const raw = localStorage.getItem(SW.SAVE_KEY); if (!raw) return null; const s = JSON.parse(raw); return s && s.v === SW.VERSION ? s : null; } catch (e) { return null; }
+    try { const raw = localStorage.getItem(SW.SAVE_KEY); if (!raw) return null; const s = JSON.parse(raw); return s && s.v === SW.VERSION ? SW.migrate(s) : null; } catch (e) { return null; }
+  };
+  // fill in anything newer than the save (new characters, new systems)
+  SW.migrate = function (s) {
+    for (const id of Object.keys(SW.CH)) { s.knows[id] = s.knows[id] || {}; s.n[id] = s.n[id] || { map: 'away', x: 0, y: 0, act: '', mood: 60, energy: 80 }; if (BASE_REL[id] && !s.rel[id]) s.rel[id] = Object.assign({}, BASE_REL[id]); }
+    s.lies = s.lies || []; s.seen = s.seen || [];
+    return s;
   };
   SW.clearSave = function () { try { localStorage.removeItem(SW.SAVE_KEY); } catch (e) { /* storage blocked */ } };
 
@@ -3111,7 +3126,7 @@ window.SW = window.SW || {};
   };
   Sys.breakP = function (id) {
     const p = Sys.pending(id); if (!p) return false;
-    p.status = 'broken'; p.done = S().t; S().stats.broken++;
+    p.status = 'broken'; p.done = S().t; S().stats.broken++; p.where = S().p.map;
     const r = Sys.rel(p.who);
     if (r) Sys.ch(p.who, { trust: -(p.weight || 10), tension: Math.round((p.weight || 10) * 0.8), friend: -3 }, true);
     Sys.mem(p.who, p.breakText || `你答應「${p.text}」，最後卻沒出現`, -1, 'broke_' + p.id, true);
@@ -3172,6 +3187,68 @@ window.SW = window.SW || {};
     for (const q of due) { if (H[q.k]) { try { H[q.k](q.d); } catch (e) { console.error('queue', q.k, e); } } }
   };
 
+  // ---------- sightings: who saw the player where (the raw material of witnesses) ----------
+  Sys.sight = function () {
+    const st = S(), L = st.seen || (st.seen = []);
+    const who = SW.W.npcsHere().filter((id) => st.p.map !== 'city' || SW.W.distTo(id) < 25);
+    const last = L[L.length - 1];
+    if (last && last.map === st.p.map && st.t - last.to < 15) { last.to = st.t; for (const id of who) if (!last.who.includes(id)) last.who.push(id); return; }
+    L.push({ t: st.t, to: st.t, map: st.p.map, who });
+    while (L.length && st.t - L[0].to > 4 * 1440) L.shift();
+  };
+  // what a witness must have seen to contradict a story
+  const PRED = { notHome: (m) => m !== 'home', notOffice: (m) => m !== 'office', any: () => true };
+  Sys.witnesses = function (from, to, pred) {
+    const out = new Set(), f = PRED[pred] || PRED.any;
+    for (const e of S().seen || []) if (e.to >= from && e.t <= to && f(e.map)) for (const id of e.who) out.add(id);
+    return [...out];
+  };
+  Sys.wasAt = (from, to, pred) => (S().seen || []).some((e) => e.to >= from && e.t <= to && (PRED[pred] || PRED.any)(e.map));
+
+  // ---------- lies ----------
+  // A lie is believed until someone it was told to spends time with someone who knows the truth.
+  // o: { id, to, text, w: [static witnesses], win: [from, to], pred, weight, chance, kind, victim }
+  Sys.lie = function (o) {
+    const st = S(), L = st.lies || (st.lies = []);
+    const lie = Object.assign({ t: st.t, exposed: null, resolved: null, doubled: 0, weight: 10, chance: 0.2, w: [] }, o);
+    lie.to = [].concat(lie.to);
+    L.push(lie);
+    st.stats.lies = (st.stats.lies || 0) + 1;
+    if (lie.kind === 'white') st.stats.whiteLies = (st.stats.whiteLies || 0) + 1;
+    return lie;
+  };
+  Sys.lieWitnesses = (l) => [...new Set(l.w.concat(l.win ? Sys.witnesses(l.win[0], l.win[1], l.pred) : []))].filter((x) => !l.to.includes(x)); // a scapegoat is the best witness there is
+  Sys.openLies = (id) => (S().lies || []).filter((l) => l.to.includes(id) && !l.exposed && !l.resolved);
+  Sys.checkLies = function () {
+    const st = S();
+    for (const l of st.lies || []) {
+      if (l.exposed || l.resolved || l.kind === 'white') continue;
+      const ws = Sys.lieWitnesses(l);
+      for (const to of l.to) {
+        const n = st.n[to]; if (!n || n.map === 'away') continue;
+        const w = ws.find((x) => st.n[x] && st.n[x].map === n.map);
+        if (!w) continue;
+        const talk = SW.CH[w].gossip !== undefined ? 0.5 + SW.CH[w].gossip : 0.8;
+        if (Math.random() < l.chance * talk * (1 + l.doubled * 0.5)) { Sys.expose(l, to, w); break; }
+      }
+    }
+  };
+  Sys.expose = function (l, to, by) {
+    const st = S();
+    l.exposed = { to, by, t: st.t };
+    const w = Math.round(l.weight * (1 + l.doubled * 0.6));
+    if (st.rel[to]) Sys.ch(to, { trust: -w, tension: Math.round(w * 0.8) }, true);
+    else if (to === 'boss') st.work.bossTrust -= Math.round(w * 0.8);
+    if (l.victim && st.rel[l.victim]) { Sys.ch(l.victim, { trust: -12, tension: 12 }, true); Sys.mem(l.victim, `你把責任推到${nm(l.victim)}身上`, -1, 'blamed_' + l.id, true); Sys.pch(to, l.victim, { tension: -8 }); }
+    Sys.mem(to, `發現你說謊：${l.text}`, -1, 'lie_' + l.id, true);
+    st.stats.exposed = (st.stats.exposed || 0) + 1;
+    UI.toast(`👀 ${nm(by)}和${nm(to)}聊天的時候，好像提到了你……`, 'warn');
+  };
+
+  // ---------- drinking ----------
+  Sys.drink = function () { const k = 'drinks_' + T.day(); S().f[k] = (S().f[k] || 0) + 1; Sys.energy(-3); if (S().f[k] === 2) UI.toast('🍷 你有點微醺了。話好像比較容易說出口。', 'love'); };
+  Sys.tipsy = () => (S().f['drinks_' + T.day()] || 0) + (T.mod() < 5 * 60 ? (S().f['drinks_' + (T.day() - 1)] || 0) : 0);
+
   // ---------- player stats ----------
   Sys.energy = (d) => { const p = S().p; p.energy = U.clamp(p.energy + d, 0, 100); };
   Sys.mood = (d) => { const p = S().p; p.mood = U.clamp(p.mood + d, 0, 100); };
@@ -3193,6 +3270,7 @@ window.SW = window.SW || {};
     SW.W.updateNPCs(mins, instant);
     Sys.processQueue();
     Sys.checkPromises();
+    Sys.sight();
     const hr = Math.floor(st.t / 60);
     if (lastHour !== null && hr !== lastHour) { Sys.hourly(); }
     lastHour = hr;
@@ -3200,6 +3278,7 @@ window.SW = window.SW || {};
   Sys.hourly = function () {
     const st = S();
     Sys.spreadGossip();
+    Sys.checkLies();
     // NPCs spending time together drift closer (or further)
     const here = {};
     for (const id of SW.CORE) { const n = st.n[id]; if (n.map !== 'away') (here[n.map] = here[n.map] || []).push(id); }
@@ -3516,6 +3595,7 @@ window.SW = window.SW || {};
     const near = Acts.others(id).filter((o) => SW.CH[o].core || o === 'zhe' || o === 'landlord');
     const items = [
       story ? { icon: '💬', t: story.label || `${ch.name}好像有話想說`, sub: '劇情', v: 'story', hot: true } : null,
+      SW.Human.canDrunkTalk(id) ? { icon: '🍷', t: '酒後真心話', sub: '微醺的時候，有些話比較說得出口', v: 'drunk', hot: true } : null,
       id === 'pei' && st.f.cafeEmptied && /顧店|幫老蔡/.test(n.act || '') ? { icon: '☕', t: '跟小沛點一杯拿鐵', sub: 'NT$80・+體力', v: 'coffee' } : null,
       { icon: '🗨️', t: '聊天', sub: '聊聊近況', v: 'talk' },
       { icon: '😂', t: '開玩笑', sub: '冷笑話／吐槽／自嘲', v: 'joke' },
@@ -3536,6 +3616,7 @@ window.SW = window.SW || {};
     if (!v) return;
     switch (v) {
       case 'story': return SW.Dir.run(story);
+      case 'drunk': return SW.Human.drunkTalk(id);
       case 'coffee':
         if (!Sys.pay(80)) return;
         Sys.energy(14); st.cafe.fund += 80;
@@ -3814,6 +3895,7 @@ window.SW = window.SW || {};
     });
     st.p.follower = null;
     if (opt.promise) Sched.clearOv(opt.promise);
+    if (opt.romantic) SW.Human.afterDate(id);
     const first = !Sys.hasMem(id, 'joint_' + actId);
     Sys.ch(id, { friend: 4 + (result > 70 ? 2 : 0), comfort: 4, attract: opt.romantic ? 4 : 0, tension: -3 });
     Sys.mem(id, `和${nm(id)}一起${A.name}${opt.romantic ? '（約會）' : ''}`, 1, 'joint_' + actId, !first);
@@ -3864,6 +3946,7 @@ window.SW = window.SW || {};
     },
     dinner: async (id, opt) => {
       const v = await choose([{ t: '你決定菜單', v: 'me' }, { t: `讓${nm(id)}點`, v: 'them' }, { t: '一起看菜單討論', v: 'both' }]);
+      Sys.drink();
       const pr = 520; if (!Sys.pay(pr)) await say(id, '欸，你的卡刷不過？沒關係，這頓我先付，下次換你請。');
       if (v === 'me') await say(id, SW.S.rel[id].comfort > 55 ? '你點的都是我愛吃的欸。你是不是偷偷觀察我？' : '嗯……也可以啦。');
       else if (v === 'them') await say(id, '那我要點炸物拼盤、鹹酥雞沙拉，還有……兩杯好日子特調！');
@@ -3874,6 +3957,9 @@ window.SW = window.SW || {};
         if (t === 'you') Sys.ch(id, { attract: 3 }, true);
       }
       Sys.energy(20);
+      if (SW.CH[id].core && T.mod() >= 18 * 60 && !S().f['drunkTalk_' + id] && (await choose([{ t: '「再點一輪？」', v: 1 }, { t: '「差不多了，今天到這裡。」', v: 0 }]))) {
+        Sys.drink(); await SW.Human.drunkTalk(id);
+      }
       return 70;
     },
     gym: async (id) => {
@@ -4612,7 +4698,7 @@ window.SW = window.SW || {};
 
   // ===== BAR =====
   OBJ.barCounter = () => [
-    { icon: '🍸', t: '點一杯好日子特調', sub: 'NT$250・+心情', v: 'drink', run: async () => { if (!Sys.pay(250)) return; Sys.mood(10); Sys.energy(-4); if (here('tsai')) await SW.scene(async () => { await say('tsai', U.pick(['特調一杯。今天看起來需要雙倍的「好日子」。', '慢慢喝。這杯的名字叫「明天再說」。', '你的臉寫著「上班好累」，我幫你多加了一點檸檬。'])); }); else UI.toast('🍸 微酸、微甜、很好日子。'); } },
+    { icon: '🍸', t: '點一杯好日子特調', sub: 'NT$250・+心情', v: 'drink', run: async () => { if (!Sys.pay(250)) return; Sys.mood(10); Sys.drink(); if (here('tsai')) await SW.scene(async () => { await say('tsai', U.pick(['特調一杯。今天看起來需要雙倍的「好日子」。', '慢慢喝。這杯的名字叫「明天再說」。', '你的臉寫著「上班好累」，我幫你多加了一點檸檬。'])); }); else UI.toast('🍸 微酸、微甜、很好日子。'); } },
     here('tsai') ? { icon: '🧔', t: '跟老蔡聊天', sub: '他看過太多人的故事', v: 'tsai', run: () => SW.Acts.minor('tsai') } : null,
   ];
   OBJ.jukebox = () => [{ icon: '🎵', t: '點一首歌', sub: 'NT$20', v: 'song', run: async () => {
@@ -5981,7 +6067,7 @@ window.SW = window.SW || {};
   SW.EPISODES = {
     1: { kicker: 'EP01・星期一', title: '今天可以準時下班嗎？', lines: [['A線', '主管要你下午五點前解掉 Bug #4521。'], ['B線', '晚上七點，米拉幫小沛辦了驚喜生日派對。不要說出去。'], ['C線', '樂樂覺得阿修最近怪怪的。']] },
     2: { kicker: '第二天・星期二', title: 'Code Review 是一種格鬥技', lines: [['A線', '早上十點，阿修主持 code review。Feature Owner 的位子只有一個。'], ['B線', '樂樂今晚和男友約在好日子餐酒館。氣氛好像不太妙。'], ['C線', '小沛的笑容越來越用力了。']] },
-    3: { kicker: 'EP02・星期三', title: '誰睡在我們家沙發上？', lines: [['A線', '新的 Bug，舊的承諾。'], ['B線', '剛分手的樂樂需要一個地方住。'], ['C線', '晚上七點，轉角老位子。有人有話要說。']] },
+    3: { kicker: 'EP02・星期三', title: '誰睡在我們家沙發上？', lines: [['A線', () => { const p = Sys.prom('miraTest'); return p && p.status === 'kept' ? '課長想知道，週一那個問題到底是誰發現的。' : '新的 Bug，舊的承諾。'; }], ['B線', '剛分手的樂樂需要一個地方住。'], ['C線', '晚上七點，轉角老位子。有人有話要說。']] },
     4: { kicker: '第四天・星期四', title: '小組、秘密與走音的情歌', lines: [['A線', '主管要找人留守週五晚上的 release。'], ['B線', '安森邀你參加今晚的教會小組，主題是「安息」。'], ['C線', '回聲工作室的預約表上，有一個奇怪的名字。']] },
     5: { kicker: 'EP03・星期五', title: '最糟糕的星期五', lines: [['A線', '18:00 FW 2.3 release。'], ['B線', '20:00 轉角 Live。'], ['C線', '教會的社區愛宴、你的約會，還有快撐不住的安森——全部都在今晚。']] },
     6: { kicker: '第六天・星期六', title: '宿醉、房東與澳洲', lines: [['A線', '下午兩點，房東陳伯來到轉角。'], ['B線', '有人在想要不要離開台灣。'], ['C線', '樂樂的人生，也需要一個新的地址。']] },
@@ -6069,7 +6155,7 @@ window.SW = window.SW || {};
   add({ id: 'd1_absent', kind: 'phone', day: 1, from: '11:30', cond: (st) => !st.f.v_office_1, run: (st) => { msg('boss', 'boss', '你今天沒進公司？', 'd1_absent', at(1, '14:00')); } });
   R.d1_absent = [
     { t: '「我在家遠端，等等就進去。」', fn: (st) => { st.work.bossTrust -= 1; } },
-    { t: '「我今天身體不太舒服……」', fn: (st) => { st.f.sickLie = true; st.work.bossTrust -= 1; later(3, 'boss', 'boss', '好，多休息。4521 我先找阿修看。'); st.f.bug4521 = st.f.bug4521 || 'hsiu'; st.work.hsiuScore += 4; } },
+    { t: '「我今天身體不太舒服……」', fn: (st) => { st.f.sickLie = true; Sys.lie({ id: 'sick1', to: 'boss', text: '你說週一身體不舒服才沒進公司', win: [at(1, '08:30'), at(1, '18:30')], pred: 'notHome', weight: 8, chance: 0.15, caught: '{W}說，週一好像在外面看到你。' }); st.work.bossTrust -= 1; later(3, 'boss', 'boss', '好，多休息。4521 我先找阿修看。'); st.f.bug4521 = st.f.bug4521 || 'hsiu'; st.work.hsiuScore += 4; } },
     { t: '「我今天想請一天假。」', fn: (st) => { st.work.bossTrust -= 3; later(3, 'boss', 'boss', '……下次早點說。'); } },
   ];
 
@@ -6453,10 +6539,16 @@ window.SW = window.SW || {};
     else await say('mira', '我不是生氣你沒來小沛的派對。');
     await say('mira', '我只是以為，你至少會跟我講一聲。');
     const canFix = st.p.map === 'office' && !T.weekend();
-    const c = await choose([{ t: '「對不起。我真的應該先說。」', v: 'sorry' }, { t: '「我那時候真的很忙……」', v: 'excuse' }, { t: '「我現在就補做測試給你。」', v: 'fix', if: canFix }, { t: '開玩笑：「我那天是去拯救世界了。」', v: 'joke' }, { t: '（直接走開）', v: 'leave' }]);
+    const c = await choose([{ t: '「對不起。我真的應該先說。」', v: 'sorry' }, { t: '「我那時候真的很忙……」', v: 'excuse' }, { t: '「我現在就補做測試給你。」', v: 'fix', if: canFix }, { t: '「課長那天臨時抓我去開會，我走不開。」', sub: '（說謊）', v: 'lie', if: broken.some((p) => p.id === 'miraTest') }, { t: '開玩笑：「我那天是去拯救世界了。」', v: 'joke' }, { t: '（直接走開）', v: 'leave' }]);
     for (const p of broken) st.f['apol_' + p.id] = c;
     if (c === 'sorry') { await say('mira', '……嗯。下次。'); Sys.ch('mira', { tension: -8, trust: 3 }); Sys.mem('mira', '你為爽約的事好好道了歉', 1, 'apolMira', true); }
     else if (c === 'excuse') { await say('mira', '大家都很忙。我也很忙。'); Sys.ch('mira', { tension: 2 }); }
+    else if (c === 'lie') {
+      await say('mira', '……課長？喔。那就沒辦法了。');
+      Sys.ch('mira', { tension: -5 }, true);
+      Sys.lie({ id: 'miraMeeting', to: 'mira', text: '你說週一下午被課長抓去開會', w: ['boss'], weight: 12, chance: 0.06, caught: '我今天問了課長週一那個會。他說，他那天下午在客戶那裡。' });
+      await narr('（她接受得太快了。你突然希望她多問一句。）');
+    }
     else if (c === 'fix') {
       await say('mira', '……現在？好。');
       const r = await SW.MG.debug(SW.Puzzles.forHelp('mira'), { partner: 'mira', title: '補跑米拉的 regression' });
@@ -6819,6 +6911,7 @@ window.SW = window.SW || {};
     { t: '「轉角可以跟我們公司福委會長期合作。」', v: 'company', if: st.cafe.partner === 'company' },
     { t: '「您的母親，以前和小沛的外婆一起在這條街賣豆花，對吧？」', v: 'douhua', if: !!st.f.douhua },
     { t: '「陳伯，您在意的，是這間店有沒有人好好顧，對吧？」', v: 'care', if: !!st.f.landlordHint },
+    { t: '「陳伯，您是不是也被逼著做決定？」', v: 'son', if: !!st.f.landlordSon },
     { t: '「我可以當保證人。」', v: 'guar', if: st.p.money >= 20000 },
     { t: '（讓小沛自己說）', v: 'pei' },
   ];
@@ -6837,6 +6930,14 @@ window.SW = window.SW || {};
       if (v === 'company') { await say('landlord', '有固定客人，那就比較不怕了。'); cut += 15000; }
       if (v === 'douhua') { await narr('陳伯愣住了。'); await say('landlord', '……你怎麼知道？'); await say('landlord', '我阿母跟她外婆，以前在這個轉角擺了二十年的攤。'); await narr('他摘下眼鏡，擦了很久。'); cut += 40000; Sys.mem('pei', '你在談判桌上說出了外婆和陳伯媽媽的豆花攤', 1, 'douhua'); }
       if (v === 'care') { await say('landlord', '……對。我不缺那幾萬塊。我只是不想看到這間店被隨便對待。'); cut += 15000; }
+      if (v === 'son') {
+        await say('landlord', '……你知道我兒子的事？');
+        await narr('陳伯沉默了很久。窗外有一台機車按了兩聲喇叭。');
+        await say('landlord', '他做生意欠了一筆錢。Bloom 出的租金，可以幫他還一半。我老了，只有這一個兒子。');
+        await say('landlord', '阿沛也是我看著長大的。我兩邊……都不想對不起。');
+        await say('pei', '……陳伯，我不知道。對不起，我只想到我自己。');
+        cut += 12000; st.f.landlordOpen = true; Sys.mem(['pei'], '你們知道了陳伯的難處', 1, 'landlordOpen', true);
+      }
       if (v === 'guar') { await say('landlord', '你願意擔保？……年輕人，你很講義氣。'); cut += 8000; st.f.guarantor = true; Sys.ch('pei', { trust: 6 }); }
       if (v === 'pei') { await say('pei', '陳伯，我想留下來。不是因為我不能走，是因為我想讓這條街，還有地方可以坐。'); cut += 8000; st.cafe.will += 8; break; }
     }
@@ -6883,9 +6984,13 @@ window.SW = window.SW || {};
   add({ id: 'd6_lele_confess', kind: 'offscreen', day: 6, from: '12:00', cond: (st) => !!st.f.leleConfess && !st.f.leleKnowsHsiu, run: (st) => {
     st.f.leleRejectedByHsiu = true; Sys.pch('hsiu', 'lele', { tension: 12 }); Sys.npcCh('lele', { mood: -10 });
     Sys.forget('lele', 'rumorLele'); Sys.learn('lele', 'hsiuSong', 'hsiu', true);
-    msg('lele', 'lele', '我今天做了一件很蠢的事。我跟阿修告白了。他說他喜歡的是米拉。……你是不是早就知道？');
-    Sys.ch('lele', { trust: K('hsiuSong') ? -6 : 0 }, true);
+    msg('lele', 'lele', '我今天做了一件很蠢的事。我跟阿修告白了。他說他喜歡的是米拉。……你是不是早就知道？', 'd6_lele_knew', at(6, '23:30'));
   } });
+  R.d6_lele_knew = (st) => [
+    { t: K('hsiuSong') ? '「……對，我早就知道了。對不起，那不是我能說的事。」' : '「我真的不知道。你還好嗎？」', fn: () => { if (K('hsiuSong')) Sys.ch('lele', { trust: -2, comfort: 3 }, true); later(3, 'lele', 'lele', K('hsiuSong') ? '……嗯。我知道你不能說。只是有點丟臉。' : '不好。但有你問就好一點了。'); } },
+    { t: '「我也是剛剛才知道。」', if: K('hsiuSong'), fn: (s) => { const src = s.knows.player.hsiuSong && s.knows.player.hsiuSong.from; Sys.lie({ id: 'leleKnew', to: 'lele', text: '你說你不知道阿修喜歡米拉', w: SW.CORE.includes(src) ? [src] : ['hsiu'], weight: 8, chance: 0.2, caught: '{W}說你很早就知道了。' }); later(3, 'lele', 'lele', '……好吧。那我們一起當笨蛋。'); } },
+    { t: '「喜歡一個人從來都不蠢。」', fn: () => { Sys.ch('lele', { comfort: 4 }, true); later(3, 'lele', 'lele', '……你這句話我要截圖。'); } },
+  ];
   add({ id: 'trip', kind: 'manual', once: false, run: async (st) => {
     const fol = st.p.follower;
     if (!(await Sys.confirmTime(300, '南寮漁港小旅行'))) return;
@@ -6929,13 +7034,15 @@ window.SW = window.SW || {};
     let s = { go: 3, stay: -2, miss: -1, self: 1 }[st.f.miraAdvice] || 0;
     if (st.f.hsiuMira === 'couple') s -= 2;
     if (st.f.miraWalkaway) s += 1;
+    if (st.f.credit === 'stole' && st.f.creditRevealed !== 'returned') s += 1.5;
     if (st.rel.mira.trust >= 65) s += 0.5;
     s += Math.random() * 1.6 - 0.8;
     st.f.miraDecision = s > 0.6 ? 'go' : s < -0.6 ? 'stay' : 'delay';
   } });
   Story.outcome = function (st) {
     const c = st.cafe;
-    const need = Math.max(60000, c.need - (c.cut || 0));
+    const bloom = st.f.bloom === 'sold' ? 25000 : st.f.bloom === 'fooled' ? -6000 : 0; // what Bloom knew about her
+    const need = Math.max(60000, c.need - (c.cut || 0) + bloom);
     const total = c.fund + (c.crowd || 0) + (c.partner === 'company' ? 20000 : 0);
     if (st.f.churchOffer && !c.partner) c.partner = 'church';
     if (total >= need && c.will >= 40) return 'renew';
@@ -6956,6 +7063,7 @@ window.SW = window.SW || {};
     await say('pei', '{N}……你覺得，不管結果怎樣，我都可以接受嗎？');
     const c = await choose([{ t: '「可以。因為你不是一個人接受。」', v: 1 }, { t: '「不管怎樣，你都還是小沛。」', v: 2 }, { t: '「我不知道。但我會在。」', v: 3 }]);
     st.cafe.will += c === 1 ? 6 : c === 2 ? 5 : 4;
+    if (st.f.bloom === 'sold') { await say('landlord', '而且……Bloom 那邊好像很清楚阿沛的狀況。比我還清楚。'); await narr('（小沛轉頭看了你一眼。只是一眼。她什麼都不知道。）'); }
     const out = Story.outcome(st);
     st.cafe.outcome = out;
     if (out === 'renew') {
@@ -7093,8 +7201,10 @@ window.SW = window.SW || {};
     if (s.dates >= 2) titles.push('約會達人');
     if (s.church >= 2) titles.push('教會常客');
     if (s.gigs >= 1) titles.push('轉角的吉他手');
-    if (!titles.length) titles.push('普通但真實的人');
+    const prof = SW.Human ? SW.Human.profile() : { html: '', title: null };
+    if (!titles.length && !prof.title) titles.push('普通但真實的人');
     const html = `<div class="card-sec"><h4>這個世界現在的樣子</h4><ul>${world.filter(Boolean).map((w) => `<li>${U.esc(w)}</li>`).join('')}</ul></div>${ppl}
+${prof.html}
       <div class="card-sec"><h4>你這一週</h4><p>修好 ${s.bugs} 個 Bug・惡搞 ${s.pranks} 次・摸魚 ${s.slacked} 次・約會 ${s.dates} 次・守約 ${s.kept} 次・爽約 ${s.broken} 次・幫助別人 ${s.helped} 次・去教會 ${s.church} 次・運動 ${s.workouts} 次・下廚 ${s.cooked} 次</p><p>${titles.map((t) => `<span class="tag good">${t}</span>`).join('')}</p></div>
       <p class="muted">這不是結局。世界會繼續前進，而且會記得這一週。你可以繼續生活，或在手機「設定」重新開始，活一個完全不同的版本。</p>`;
     await UI.card({ kicker: '第一季・第一週回顧', title: '我們還有地方可以坐嗎？', html, buttons: [{ t: '繼續生活', v: 1 }] });
@@ -7163,8 +7273,15 @@ window.SW = window.SW || {};
         lele: ['你上次放我鴿子！！', '我在那邊等了好久，還被店員同情了！'],
       }[id];
       for (const l of L) await say(id, l);
-      const c = await choose([{ t: '「對不起，是我不好。」', v: 'sorry' }, { t: '「那天真的有事……」', v: 'excuse' }, { t: '「下次我一定到。我們重新約。」', v: 'remake' }]);
+      const away = p.where && p.where !== 'home';
+      const c = await choose([{ t: '「對不起，是我不好。」', v: 'sorry' }, { t: '「那天真的有事……」', v: 'excuse' }, { t: '「那天家裡臨時出了點事。」', sub: away ? '（說謊）' : '', v: 'home' }, { t: '「下次我一定到。我們重新約。」', v: 'remake' }]);
       st.f['apol_' + p.id] = c;
+      if (c === 'home') {
+        await say(id, '……喔！那你家還好嗎？');
+        Sys.ch(id, { tension: -6, trust: 1 }, true);
+        if (away) Sys.lie({ id: 'excuse_' + p.id, to: id, text: `你說「${SW.tx(p.text)}」那天是家裡出事`, win: [p.from - 30, p.until], pred: 'notHome', weight: 9, chance: 0.25, caught: '{W}說，那天在外面看到你。你家裡沒事，對吧？' });
+        return;
+      }
       if (c === 'sorry') { Sys.ch(id, { tension: -7, trust: 2 }); await say(id, '……嗯。好。'); }
       else if (c === 'excuse') { Sys.ch(id, { tension: -2 }); await say(id, '好吧。'); }
       else { Sys.ch(id, { tension: -5 }); await say(id, '你說的喔。'); UI.closeDialog(); await SW.Acts.invite(id, false); }
@@ -7264,6 +7381,506 @@ window.SW = window.SW || {};
     const w = U.pick(['lele', 'pei', 'mira']);
     msg(w, w, { lele: '你今天在幹嘛！整天沒看到你！還活著嗎！', pei: '今天沒看到你耶～有空來喝杯咖啡？☕', mira: '你今天沒進公司？課長問了。我說你可能在閉關。' }[w]);
   } });
+})(window.SW);
+
+// ---- js/data/human.js
+'use strict';
+// Human nature: lies and the people who saw the truth, temptations with a price, what people say after the
+// second drink, and the person your choices add up to.
+(function (SW) {
+  const U = SW.U, T = SW.T, UI = SW.UI, Sys = SW.Sys, Dir = SW.Dir, H = SW.H, Sched = SW.Sched;
+  const S = () => SW.S;
+  const nm = (id) => SW.name(id);
+  const say = (w, t, e) => UI.say(w, t, e);
+  const narr = (t) => UI.say('narr', t);
+  const inner = (t) => UI.say('narr', `（${t}）`);
+  const choose = (o, p) => UI.choose(o, p);
+  const K = (f) => Sys.knows('player', f);
+  const here = (id) => SW.W.present(id);
+  const msg = (th, from, text, reply, exp) => Sys.msg(th, from, text, { reply, exp });
+  const later = (m, th, from, text, reply, expM) => Sys.msgLater(m, th, from, text, reply, expM);
+  const add = (st) => Dir.add(st);
+  const R = SW.R;
+  const at = T.at;
+  const stat = (k, d) => { const s = S().stats; s[k] = (s[k] || 0) + (d === undefined ? 1 : d); };
+  const Human = SW.Human = {};
+
+  // =====================================================================
+  // LIES — caught
+  // =====================================================================
+  const WHY = {
+    mira: '我不在意你那天去哪。我在意的是，你看著我的眼睛說了謊。',
+    hsiu: '……我以為我們至少是會跟對方說實話的那種關係。',
+    pei: '你可以不告訴我。可是你不用騙我。',
+    anson: '我不是要審判你。我只是想知道，你為什麼覺得需要說謊。',
+    lele: '你騙我！！……我最討厭被騙了。你明明知道的。',
+    boss: '我不在乎你去哪。我在乎的是，我以後還能不能相信你的回報。',
+  };
+  const FORGIVE = {
+    mira: '……謝謝你沒有繼續編。', hsiu: '……嗯。這樣就好。', pei: '嗯。那我們重新開始。',
+    anson: '說出來，比較輕鬆，對吧？', lele: '……好啦。下次直接跟我說。我會生氣，但我會原諒你。', boss: '……下不為例。',
+  };
+  Human.caughtLie = (id) => (S().lies || []).find((l) => l.exposed && l.exposed.to === id && !l.resolved);
+  Human.confront = async function (id, l) {
+    if (!l || !l.exposed) return;
+    const st = S(), by = l.exposed.by, r = st.rel[id];
+    await say(id, l.caught ? SW.tx(l.caught).replace('{W}', nm(by)) : `${nm(by)}跟我說了一些事。`);
+    await say(id, WHY[id] || '你為什麼要騙我？');
+    const sg = id === 'boss' ? null : SW.CORE.filter((x) => x !== id && x !== by && x !== l.victim).sort((a, b) => Sys.pair(id, b).tension - Sys.pair(id, a).tension)[0];
+    const c = await choose([
+      { t: '「對不起。我說謊了。」', v: 'confess' },
+      { t: '「你誤會了，事情不是那樣……」', sub: '再圓一個謊', v: 'double' },
+      sg ? { t: `「是${nm(sg)}叫我這樣說的。」`, sub: '把責任推出去', v: 'blame' } : null,
+      { t: '（什麼都不說）', v: 'silent' },
+    ].filter(Boolean));
+    if (c === 'confess') {
+      l.resolved = 'confess'; stat('confessed');
+      if (r) Sys.ch(id, { trust: Math.round(l.weight * 0.5), tension: -Math.round(l.weight * 0.6) }); else st.work.bossTrust += 3;
+      await say(id, FORGIVE[id] || '……嗯。');
+      Sys.mem(id, '謊被拆穿之後，你沒有再狡辯', 1, 'confess_' + l.id, true);
+    } else if (c === 'double') {
+      const odds = 0.2 + (r ? r.comfort : 40) * 0.005 - l.doubled * 0.15;
+      if (Math.random() < odds) {
+        l.exposed = null; l.doubled++; stat('doubled');
+        if (r) Sys.ch(id, { tension: -4 }, true);
+        await say(id, '……好吧。我相信你。');
+        await inner(`${nm(id)}選擇相信你。你以為會鬆一口氣，結果沒有。`);
+      } else {
+        l.resolved = 'caught2';
+        if (r) Sys.ch(id, { trust: -l.weight, tension: l.weight }); else st.work.bossTrust -= 6;
+        await say(id, '……你還要繼續嗎？');
+        await narr(`${nm(id)}看著你，像在看一個陌生人。`);
+        Sys.mem(id, '謊被拆穿之後，你還在編', -1, 'caught2_' + l.id, true);
+      }
+    } else if (c === 'blame') {
+      l.resolved = 'blamed'; stat('blamed');
+      Sys.ch(id, { tension: -5 }, true);
+      Sys.pch(id, sg, { tension: 14, trust: -10 });
+      await say(id, `……${nm(sg)}？`);
+      await inner(`你看著${nm(id)}的表情從生氣變成困惑。原來把錯推出去，是這麼容易的事。`);
+      Sys.lie({ id: l.id + '_blame', to: id, text: `你說是${nm(sg)}要你那樣說的`, w: [sg], victim: sg, weight: 16, chance: 0.3, caught: `我去問了${nm(sg)}。${SW.CH[sg].name}根本不知道這件事。` });
+    } else {
+      l.resolved = 'silent';
+      if (r) Sys.ch(id, { tension: 4 }, true);
+      await narr(`${nm(id)}等了很久。你什麼都沒說。`);
+    }
+  };
+  for (const id of SW.CORE.concat(['boss'])) {
+    add({ id: 'lieC_' + id, kind: 'approach', npc: id, prio: 72, once: false, cooldown: 20, where: id === 'boss' ? 'office' : undefined, cond: () => !!Human.caughtLie(id), run: async () => Human.confront(id, Human.caughtLie(id)) });
+  }
+
+  // =====================================================================
+  // TEMPTATION 1 — whose discovery was it?
+  // =====================================================================
+  add({ id: 'd3_credit', kind: 'approach', npc: 'boss', day: 3, where: 'office', from: '09:30', to: '17:30', prio: 55, cond: (st) => { const p = Sys.prom('miraTest'); return !!p && p.status === 'kept'; }, run: async (st) => {
+    await say('boss', '週一米拉那輪 regression，抓到一個很嚴重的掉電問題。客戶說這個發現幫他們省了一整批退貨。');
+    await say('boss', '報告上是你們兩個的名字。我想知道——是誰先看到的？');
+    await say('boss', '這件事，會放進 Feature Owner 的評估。');
+    await inner('其實是米拉先看到的。她那時候盯著 log 說了一句「欸，這裡怪怪的」。');
+    const c = await choose([{ t: '「是米拉。我只是幫忙跑測試。」', v: 'honest' }, { t: '「我們一起看到的。」', v: 'shared' }, { t: '「……是我。」', v: 'stole' }]);
+    st.f.credit = c;
+    if (c === 'honest') {
+      st.work.bossTrust += 1;
+      await say('boss', '……嗯。誠實。我記下來了。');
+      Sys.ch('mira', { trust: 6, friend: 3 }, true);
+      Sys.mem('mira', '你把發現的功勞還給了她', 1, 'creditHonest', true);
+      later(200, 'mira', 'mira', '課長說你跟他講，那個問題是我先看到的。……謝謝。我以為會被吃掉。');
+    } else if (c === 'shared') {
+      st.work.perf += 1; st.work.bossTrust += 1;
+      await say('boss', '好。團隊合作。');
+      await inner('不算說謊。也不算說實話。');
+    } else {
+      st.work.perf += 3; st.work.bossTrust += 4; stat('betrayals');
+      Sys.lie({ id: 'credit', to: 'boss', text: '你說那個掉電問題是你先發現的', w: ['mira'], weight: 10, chance: 0.04, caught: '米拉的 log 時間戳比你早四十分鐘。你要解釋一下嗎？' });
+      await say('boss', '很好。這種敏銳度，就是我要的。');
+      await inner('課長點點頭，在筆記本上寫下你的名字。走廊另一頭，米拉正在幫隔壁組修印表機。');
+    }
+  } });
+  add({ id: 'd4_credit_reveal', kind: 'approach', npc: 'mira', day: [4, 5, 6, 7, 8, 9], from: '09:30', to: '22:00', prio: 66, cond: (st) => st.f.credit === 'stole' && !st.f.creditRevealed, run: async (st) => {
+    await say('mira', '今天早上週會，課長說那個掉電問題是你抓到的。');
+    await say('mira', '全組都在拍手。我也拍了。');
+    await say('mira', '……我只想問你一句。為什麼？');
+    const c = await choose([{ t: '「對不起。我現在就去跟課長說清楚。」', v: 'returned' }, { t: '「課長搞錯了。我有跟他說是你。」', sub: '（說謊）', v: 'lied' }, { t: '「職場就是這樣。換作是你，也會這樣做。」', v: 'owned' }]);
+    st.f.creditRevealed = c;
+    const cl = (st.lies || []).find((l) => l.id === 'credit');
+    if (c === 'returned') {
+      if (cl) cl.resolved = 'confess';
+      await say('mira', '……你真的會去？');
+      await narr('你敲了課長辦公室的門。課長聽完，沉默了一下。');
+      await say('boss', '你知道這樣說，對你不利吧？');
+      await say('boss', '……好。我會更正。謝謝你來說。');
+      st.work.perf -= 2; st.work.bossTrust -= 1; stat('confessed');
+      Sys.ch('mira', { trust: -3, tension: -6 });
+      Sys.mem('mira', '你把搶走的功勞還了回去', 1, 'creditReturned');
+    } else if (c === 'lied') {
+      Sys.lie({ id: 'creditMira', to: 'mira', text: '你說是課長搞錯了功勞', w: ['boss'], weight: 16, chance: 0.3, caught: '我去問了課長。他說，是你親口說的。' });
+      await say('mira', '……是喔。那我去問課長。');
+      await inner('她會去問的。你知道她會去問。');
+    } else {
+      Sys.ch('mira', { trust: -16, tension: 16, friend: -6 });
+      Sys.mem('mira', '你搶了她的功勞，還說職場就是這樣', -1, 'creditStolen');
+      await say('mira', '……不會。我不會。');
+      await narr('她轉身回到座位。那天下午，她的螢幕上開著一個澳洲打工度假的網站，一直沒有關。');
+    }
+  } });
+
+  // =====================================================================
+  // TEMPTATION 2 — the boss asks what you really think of 阿修
+  // =====================================================================
+  add({ id: 'd5_eval', kind: 'approach', npc: 'boss', day: 5, where: 'office', from: '09:30', to: '16:30', prio: 56, cond: (st) => !!st.f.featureRace, run: async (st) => {
+    await say('boss', '下週一要公布 Feature Owner。我想私下聽聽你的看法。');
+    await say('boss', '你覺得阿修怎麼樣？說實話，這裡沒有別人。');
+    const c = await choose([
+      { t: '「他很強。如果是他，我心服口服。」', v: 'praise' },
+      { t: '「技術很好，但有時候太固執。」', v: 'honest' },
+      { t: '「我不想評論同事。」', v: 'decline' },
+      { t: '「他最近……好像心思不在工作上。」', v: 'undermine' },
+      { t: '「他最近下班都在偷偷練歌，好像要追米拉。」', sub: '說出他的秘密', v: 'expose', if: K('hsiuSong') },
+    ]);
+    st.f.evalHsiu = c;
+    const W = st.work;
+    if (c === 'praise') { W.hsiuScore += 8; W.bossTrust += 1; await say('boss', '……你很有風度。'); }
+    else if (c === 'honest') { W.hsiuScore -= 2; W.bossTrust += 2; await say('boss', '嗯。中肯。'); }
+    else if (c === 'decline') { W.bossTrust -= 1; await say('boss', '……好。我尊重。'); }
+    else if (c === 'undermine') { W.hsiuScore -= 8; stat('betrayals'); await say('boss', '喔？……我會留意。'); }
+    else {
+      W.hsiuScore -= 12; stat('betrayals');
+      Sys.tell('boss', 'hsiuSong'); // recorded as a leak: the boss will say something to him
+      await say('boss', '……練歌？上班時間的事我管，下班的事我不管。但我會記得。');
+      Sys.at(at(5, '17:10'), 'evalLeak', {});
+    }
+    // the mirror: he was asked the same question
+    await say('boss', '有趣的是，我昨天也問了阿修同樣的問題。');
+    const r = st.rel.hsiu;
+    const good = r.friend >= 58 || ['praisedPublic', 'congrats', 'coachSong', 'coverRelease'].some((t) => Sys.hasMem('hsiu', t));
+    const bad = !good && (r.tension >= 35 || Sys.hasMem('hsiu', 'laughSong'));
+    st.f.hsiuSaid = good ? 'praise' : bad ? 'bad' : 'neutral';
+    if (good) { await say('boss', '他說：「如果是{N}，我心服口服。」'); W.bossTrust += 3; }
+    else if (bad) { await say('boss', '他說你「很聰明，但不太可靠」。'); W.bossTrust -= 2; }
+    else await say('boss', '他說你們「還在互相了解」。……很外交的回答。');
+    const mean = c === 'undermine' || c === 'expose';
+    if (mean && good) { await inner('他在你看不到的地方，替你說了好話。而你剛剛……'); Sys.mood(-10); }
+    else if (c === 'praise' && bad) await inner('你替他說了好話。他沒有。你突然不知道，善良是不是一種吃虧。');
+    else if (c === 'praise' && good) await inner('原來有些話，不用當面說，對方也聽得到。');
+    else if (mean && bad) await inner('你們都在背後說了對方。這樣算扯平嗎？');
+  } });
+  H.evalLeak = function () {
+    const st = S();
+    st.f.hsiuKnowsEval = true;
+    Sys.ch('hsiu', { trust: -15, tension: 15 }, true);
+    Sys.mem('hsiu', '你在課長面前說出他在練歌的事', -1, 'evalLeak', true);
+    if (st.rel.hsiu.trust < 45 || Math.random() < 0.5) { st.f.hsiuQuit = true; st.f.hsiuQuitEval = true; }
+  };
+  add({ id: 'd5_eval_leak', kind: 'approach', npc: 'hsiu', prio: 70, cond: (st) => !!st.f.hsiuKnowsEval && !st.f.evalLeakFaced, run: async (st) => {
+    st.f.evalLeakFaced = true;
+    await say('hsiu', '課長剛剛把我叫進去。他說：「專心工作，少練點歌。」');
+    await say('hsiu', '這件事，公司裡只有你知道。');
+    if (st.f.hsiuQuitEval) await say('hsiu', '……今晚那首歌，我不唱了。反正也不重要。');
+    const c = await choose([{ t: '「對不起。我不該說的。」', v: 'sorry' }, { t: '「我只是說實話。」', v: 'truth' }, { t: '「不是我說的。」', sub: '（說謊）', v: 'lie' }]);
+    if (c === 'sorry') { Sys.ch('hsiu', { tension: -5 }); await say('hsiu', '……說對不起有什麼用。'); await narr('他走開的時候，把筆記本塞進了抽屜最裡面。'); }
+    else if (c === 'truth') { Sys.ch('hsiu', { tension: 4 }); await say('hsiu', '實話。……對。你說的都是實話。'); }
+    else { Sys.lie({ id: 'evalDeny', to: 'hsiu', text: '你說不是你跟課長說他在練歌', w: ['boss'], weight: 14, chance: 0.12, caught: '我問了課長。他沒有說是誰，但他看了你的位子一眼。' }); await say('hsiu', '……那會是誰？'); await inner('他開始一個一個懷疑身邊的人。'); }
+  } });
+
+  // =====================================================================
+  // TEMPTATION 3 — Bloom Coffee wants to know what 小沛 can afford
+  // =====================================================================
+  add({ id: 'd5_bloom_msg', kind: 'phone', day: 5, from: '10:30', cond: (st) => K('lease') && !st.cafe.outcome, run: () => {
+    msg('vivian', 'vivian', '您好，我是 Bloom Coffee 展店部的 Vivian。聽說您是「轉角」的常客，想請教一些在地意見。諮詢費 NT$30,000，不會占用您太多時間。明天中午在好日子方便嗎？', 'bloom_ask', at(6, '11:00'));
+  } });
+  R.bloom_ask = [
+    { t: '（把訊息截圖傳給小沛）', fn: (st) => {
+      st.f.bloom = 'toldPei'; st.f.landlordSon = true; Sys.ch('pei', { trust: 5 }, true);
+      later(4, 'pei', 'pei', 'Bloom……？他們上個月就去找過陳伯的兒子了。原來出高價的是他們。');
+      later(6, 'pei', 'pei', '謝謝你跟我說。換作別人，可能就去了。');
+      Sys.mem('pei', '你把 Bloom 的訊息直接給她看', 1, 'bloomTold', true);
+    } },
+    { t: '「不用了，謝謝。」', fn: (st) => { st.f.bloom = 'ignored'; later(2, 'vivian', 'vivian', '了解，打擾了。'); } },
+    { t: '「好，明天中午見。」', fn: (st) => {
+      st.f.bloomMeet = true;
+      Sched.override('vivian', at(6, '11:40'), at(6, '13:20'), 'bar', 'booth1', '等你', 'bloomMeet', { free: false });
+      later(2, 'vivian', 'vivian', '太好了。明天中午，好日子靠窗的位子。');
+      Sys.at(at(6, '11:45'), 'msg', { thread: 'vivian', from: 'vivian', text: '我到了。不急，您慢慢來。' });
+    } },
+  ];
+  // a stranger's appointment is not a promise to a friend: no-shows only close the door
+  add({ id: 'd6_bloom_noshow', kind: 'offscreen', day: 6, from: '13:20', cond: (st) => !!st.f.bloomMeet && !st.f.bloom, run: (st) => { st.f.bloom = 'noshow'; msg('vivian', 'vivian', '看來您改變主意了。名片我留在老蔡那裡，有需要再聯絡。'); } });
+  SW.HINTS.push({ day: 6, from: '10:30', to: '13:20', cond: (st) => !!st.f.bloomMeet && !st.f.bloom, text: '🍸 12:00 Vivian 在好日子等你（去不去都可以）', go: 'bar' });
+  add({ id: 'd6_bloom', kind: 'scene', day: 6, where: 'bar', from: '11:40', to: '13:20', cast: ['vivian'], prio: 82, cond: (st) => !!st.f.bloomMeet && !st.f.bloom, run: async (st) => {
+    await narr('Vivian 很準時。她點了一杯氣泡水，把一個信封放在桌上，沒有推過來。');
+    await say('vivian', '我直說。陳伯的兒子想把店面租給我們，租金是現在的兩倍。陳伯還在猶豫。');
+    await say('vivian', '我們想知道兩件事：小沛這週到底湊到多少，還有她的底線在哪裡。');
+    await say('vivian', '對了，我們也願意請她當新店的店長。穩定的薪水，勞健保。說不定這對她比較好？');
+    await inner('信封很薄。三萬塊原來這麼薄。');
+    let asked = false;
+    for (;;) {
+      const c = await choose([
+        { t: '「我不會出賣朋友。」', v: 'refused' },
+        { t: '「她的事她自己決定。店長的事，你去跟她談。」', v: 'redirect' },
+        { t: '「先告訴我，陳伯的兒子為什麼這麼急？」', sub: '反過來套話', v: 'pry', if: !asked },
+        { t: '收下信封，給她假的數字', sub: '騙騙子', v: 'fooled' },
+        { t: `收下信封：「她湊到 ${U.money(st.cafe.fund + st.cafe.crowd)}。底線……大概就是這樣。」`, v: 'sold' },
+      ]);
+      if (c === 'pry') {
+        asked = true; st.f.landlordSon = true;
+        await say('vivian', '……他做生意欠了一筆錢。陳伯不想租給我們，但他只有一個兒子。');
+        await say('vivian', '所以，你懂的。這件事遲早會發生。你只是決定，要不要從中拿點什麼。');
+        continue;
+      }
+      st.f.bloom = c;
+      if (c === 'refused') {
+        await say('vivian', '理解。名片留給您，改變主意再聯絡。');
+        await inner('你走出好日子，陽光很刺眼。你沒有後悔，只是有點想知道，三萬塊可以做什麼。');
+      } else if (c === 'redirect') {
+        await say('vivian', '……好。我會直接聯絡她。');
+        later(240, 'pei', 'pei', 'Bloom 的人來找我，說要請我當店長。薪水比我現在自己顧店多。……我好亂。');
+      } else if (c === 'fooled') {
+        Sys.money(30000); stat('betrayals', 0.5);
+        await say('vivian', '……謝謝。很有幫助。');
+        await inner('你騙了一個想利用朋友的人。信封在口袋裡，比想像中重。');
+      } else {
+        Sys.money(30000); stat('betrayals');
+        await say('vivian', '很有幫助。合作愉快。');
+        await inner('說出口的時候，比你想像的容易。這才是最可怕的部分。');
+      }
+      break;
+    }
+    if (here('tsai')) await narr('吧台後面，老蔡擦著杯子，一直沒有抬頭。');
+    Sched.clearOv('bloomMeet');
+  } });
+  // the truth about the envelope comes out in week two
+  add({ id: 'd9_bloom_reveal', kind: 'approach', npc: 'pei', prio: 74, cond: (st) => (st.f.bloom === 'sold' || st.f.bloom === 'fooled') && !st.f.bloomRevealed && (T.day() >= 9 || (T.day() === 8 && T.mod() >= 17 * 60)), run: async (st) => {
+    await say('pei', st.f.bloom === 'sold' ? '老蔡跟我說，上週六中午，你跟 Bloom 的人坐在他店裡。' : 'Bloom 的 Vivian 傳訊息給我。她說你收了他們的錢，然後給了假資料。');
+    await say('pei', '……是真的嗎？');
+    const c = await choose([
+      { t: '「是真的。對不起。」', v: 'confess' },
+      { t: '「我收了錢，但給的是假數字。我是在幫你。」', v: 'fooled', if: st.f.bloom === 'fooled' },
+      { t: '「老蔡看錯了。」', sub: '（說謊）', v: 'lie', if: st.f.bloom === 'sold' },
+    ]);
+    st.f.bloomRevealed = c;
+    if (c === 'confess') {
+      const why = await choose([{ t: '「我需要那筆錢。」', v: 'money' }, { t: '「我以為店長的工作對你比較好。」', v: 'better' }, { t: '「我沒有理由。我就是做了。」', v: 'none' }]);
+      await say('pei', { money: '……你可以跟我說的。我們可以一起想辦法。', better: '你不能替我決定什麼對我比較好。', none: '……謝謝你沒有編一個理由給我。' }[why]);
+      Sys.ch('pei', { trust: -18, friend: -10, tension: 14 });
+      Sys.mem('pei', '你承認收了 Bloom 的錢', -1, 'bloomBetray');
+      await inner('她沒有哭。她只是把你常坐的那張椅子，往桌子裡推了一點。');
+    } else if (c === 'fooled') {
+      await say('pei', '所以你騙了他們，然後收了錢。我該謝謝你嗎？');
+      Sys.ch('pei', { trust: -8, tension: 8 });
+      Sys.mem('pei', '你騙了 Bloom，也收了 Bloom 的錢', -1, 'bloomFooled');
+    } else {
+      Sys.lie({ id: 'bloomDeny', to: 'pei', text: '你說老蔡看錯了，你沒見過 Bloom 的人', w: ['tsai', 'lele'], weight: 22, chance: 0.3, caught: '老蔡把那天的發票拿給我看了。兩杯，一杯氣泡水。' });
+      await say('pei', '……好。我相信你。');
+      await inner('她說「我相信你」的時候，聲音有一點抖。');
+    }
+  } });
+
+  // =====================================================================
+  // DRUNK TRUTHS — what people say after the second drink
+  // =====================================================================
+  const CONFESS = {
+    mira: ['miraEscape', ['我想去澳洲，其實不是因為想看世界。', '我是想知道，如果我消失了，會不會有人來找我。']],
+    hsiu: ['hsiuDad', ['我想當 Feature Owner，不是因為想升官。', '我爸到現在還跟親戚說，我在「電子廠上班」。我想要一個他講得出口的頭銜。']],
+    pei: ['peiPromise', ['有時候我很討厭這間店。我討厭我這麼需要它。', '外婆走之前，我答應她不會讓這個轉角空掉。我不知道我是在顧店，還是在顧一個承諾。']],
+    anson: ['ansonUseful', ['我常常覺得，大家喜歡我，只是因為我有用。', '如果哪天我不再幫忙了……大概就沒有人會找我了吧。']],
+    lele: ['leleFault', ['……我跟阿哲分手，不全是他的錯。', '我先喜歡上別人的。什麼都沒發生，但我心裡先走了。所以他罵我的時候，我一句都沒有回。']],
+  };
+  Human.truthAbout = function (id) {
+    const st = S(), r = st.rel[id];
+    const caught = (st.lies || []).filter((l) => l.to.includes(id) && (l.exposed || l.resolved) && l.kind !== 'white');
+    const open = Sys.openLies(id).filter((l) => l.kind !== 'white');
+    const broken = st.prom.filter((p) => p.who === id && p.status === 'broken').length;
+    if (id === 'mira' && st.f.creditRevealed === 'owned') return ['週會那天，我在廁所待了十分鐘。', '不是因為功勞。是因為是你。'];
+    if (id === 'pei' && st.f.bloom === 'sold' && !st.f.bloomRevealed) return ['你知道嗎？這一週，你是我最不擔心的人。', '因為我知道，你不會走。'];
+    if (id === 'hsiu' && st.f.hsiuSaid === 'praise' && (st.f.evalHsiu === 'undermine' || st.f.evalHsiu === 'expose') && !st.f.hsiuKnowsEval) return ['課長問過我你的事。我說了你的好話。', '……不知道為什麼，突然想跟你說。'];
+    if (st.p.partner === id && st.f.affair && !Sys.knows(id, 'affair')) return ['我有時候會想，你是不是有一天會突然不見。', '……我知道你不會啦。'];
+    if (caught.length) return ['你上次騙我的事……其實在別人跟我說之前，我就有點感覺了。', '我只是一直在等你自己說。'];
+    if (open.length) return ['你是我身邊，少數不會騙我的人。', '這件事我很確定。'];
+    if (broken >= 2) return ['你答應過我的事，有一半沒有做到。', '……但我還是一直相信下一次。這樣是不是很笨？'];
+    if (r.tension >= 40) return ['老實說，我有時候不知道我們算什麼。', '朋友？還是只是剛好坐在一起的人？'];
+    if (r.trust >= 68 || r.friend >= 72) return ['我很少這麼相信一個人。', '這讓我有點害怕。'];
+    return ['我們好像從來沒有好好聊過。', '……這樣很好。現在這樣很好。'];
+  };
+  Human.canDrunkTalk = (id) => { const st = S(); return SW.CH[id].core && st.p.map === 'bar' && T.mod() >= 18 * 60 && Sys.tipsy() >= 2 && !st.f['drunkTalk_' + id]; };
+  Human.drunkTalk = async function (id) {
+    const st = S();
+    st.f['drunkTalk_' + id] = T.day();
+    await SW.scene(async () => {
+      Sys.drink();
+      await narr(`${U.pick(['你們又點了一輪。', '老蔡默默又放了兩杯在桌上。'])}${nm(id)}的臉有點紅，說話變得很慢。`);
+      for (const l of Human.truthAbout(id)) await say(id, l);
+      const [fact, lines] = CONFESS[id];
+      if (!K(fact)) { await narr('沉默了一下。'); for (const l of lines) await say(id, l); Sys.learn('player', fact, id); st.f['trust_' + fact] = true; }
+      const open = Sys.openLies(id).filter((l) => l.kind !== 'white');
+      const pry = Object.keys(st.knows[id] || {}).filter((f) => SW.FACTS[f] && SW.FACTS[f].secret && SW.FACTS[f].owner && SW.FACTS[f].owner !== id && !K(f));
+      const c = await choose([
+        { t: '安靜地聽，然後輕輕碰一下對方的杯子', v: 'listen' },
+        open.length ? { t: '「我也有一件事要跟你坦白……」', sub: `你曾經騙過${nm(id)}`, v: 'confess' } : null,
+        { t: '「其實我也很怕被丟下。」', v: 'mine' },
+        pry.length ? { t: `趁機套話：「那……${nm(SW.FACTS[pry[0]].owner)}最近有跟你說什麼嗎？」`, sub: '對方現在什麼都會說', v: 'pry' } : null,
+      ].filter(Boolean));
+      if (c === 'listen') {
+        Sys.ch(id, { comfort: 6, trust: 4 });
+        Sys.mem(id, `微醺的那晚，你安靜地聽${nm(id)}說了真心話`, 1, 'drunkListen');
+      } else if (c === 'confess') {
+        const l = open[open.length - 1];
+        l.resolved = 'confess'; l.exposed = { to: id, by: 'player', t: st.t }; stat('confessed');
+        await narr(`你把「${l.text.replace(/^你/, '')}」的真相說了出來。`);
+        await say(id, Sys.rel(id).comfort >= 55 ? '……我就知道。謝謝你自己說出來。' : '……你為什麼要現在說？');
+        Sys.ch(id, { trust: -Math.round(l.weight * 0.3), comfort: 4 });
+        Sys.mem(id, '你在酒後主動坦白了一個謊', 1, 'drunkConfess_' + l.id);
+      } else if (c === 'mine') {
+        Sys.ch(id, { comfort: 8, friend: 3 });
+        await say(id, '……那我們兩個都要好好的。說好了。');
+        Sys.mem(id, '微醺的那晚，你們說了彼此的害怕', 1, 'drunkMine');
+      } else {
+        const f = pry[0];
+        Sys.learn('player', f, id);
+        await say(id, `${SW.FACTS[f].text}……噓。這是秘密喔。`);
+        await inner(`你得到了你想要的。${nm(id)}趴在桌上，對你笑了一下。`);
+        stat('pried');
+        if (Math.random() < 0.55) Sys.at(at(T.mod() < 5 * 60 ? T.day() : T.day() + 1, '10:00'), 'pryRealize', { id });
+      }
+    });
+    const day = T.mod() < 5 * 60 ? T.day() : T.day() + 1;
+    Sys.at(at(day, '09:40'), 'msg', { thread: id, from: id, text: U.pick(['昨天晚上……我是不是說太多了😵 拜託忘掉。', '我昨天有說什麼奇怪的話嗎……不要回答。好啦還是回答。']), reply: 'hung_' + id });
+  };
+  H.pryRealize = function (d) {
+    Sys.ch(d.id, { trust: -6, tension: 5 }, true);
+    Sys.mem(d.id, `${nm(d.id)}喝醉那晚，你一直在問別人的事`, -1, 'pried', true);
+  };
+  for (const id of SW.CORE) {
+    R['hung_' + id] = [
+      { t: '「我什麼都不記得了😂」', fn: () => { Sys.lie({ id: 'hung_' + id + '_' + T.day(), to: id, text: '你說你不記得那晚的對話', kind: 'white' }); Sys.ch(id, { comfort: 2 }, true); later(2, id, id, '……太好了。（呼）'); } },
+      { t: '「我記得。謝謝你願意跟我說。」', fn: () => { Sys.ch(id, { trust: 5 }, true); later(2, id, id, '……嗯。那你要幫我保密。'); } },
+      { t: '「放心，我不會說出去。」', fn: () => { Sys.ch(id, { trust: 2 }, true); later(2, id, id, '你最好是🥲'); } },
+    ];
+  }
+  // drunk confessions are secrets too: spreading them gets traced back
+  const LEAK2 = {
+    miraEscape: ['mira', '我喝醉那天說的話……為什麼樂樂會知道？'],
+    hsiuDad: ['hsiu', '我爸的事，你跟誰說了？'],
+    peiPromise: ['pei', '外婆的事，我只在那天晚上說過一次。'],
+    ansonUseful: ['anson', '有人跟我說「你不用那麼有用也沒關係」。……是你說出去的吧。'],
+    leleFault: ['lele', '現在大家都知道我跟阿哲的事了。是你說的對不對！！'],
+  };
+  for (const f of Object.keys(LEAK2)) {
+    const [owner, line] = LEAK2[f];
+    add({ id: 'leak_' + f, kind: 'approach', npc: owner, prio: 75, cond: (st) => !!st.f['leakFound_' + f] && !st.f['apol_leak_' + f], run: async (st) => {
+      await say(owner, line);
+      await say(owner, '那是我喝醉的時候說的。你明明知道。');
+      const c = await choose([{ t: '「對不起。我不應該說的。」', v: 'sorry' }, { t: '「我只是想幫你。」', v: 'help' }, { t: '（沉默）', v: 'quiet' }]);
+      st.f['apol_leak_' + f] = c;
+      if (c === 'sorry') { Sys.ch(owner, { tension: -5, trust: 2 }); await say(owner, '……下次我不會在你面前喝酒了。'); }
+      else if (c === 'help') { Sys.ch(owner, { tension: 2 }); await say(owner, '幫我？……你連問都沒有問我。'); }
+      else { Sys.ch(owner, { tension: 5 }); await narr(`${nm(owner)}看著你，什麼都沒說。`); }
+    } });
+  }
+
+  // =====================================================================
+  // DATING SOMEONE ELSE
+  // =====================================================================
+  Human.afterDate = function (id) {
+    const st = S(), P = st.p.partner;
+    if (!P || P === id) return;
+    stat('cheated');
+    st.f.affair = { with: id, t: st.t };
+    for (const w of SW.W.npcsHere().filter((x) => SW.CORE.includes(x) && x !== id && x !== P)) Sys.learn(w, 'affair', null, true);
+    later(25, P, P, U.pick(['到家了嗎？今天好累，想聽你的聲音。', '你今天在幹嘛？我剛剛突然很想你。']));
+  };
+  for (const id of Object.keys(SW.CH).filter((k) => SW.CH[k].core || SW.CH[k].date)) {
+    add({ id: 'affairC_' + id, kind: 'approach', npc: id, prio: 78, once: false, cooldown: 60, cond: (st) => st.p.partner === id && !!st.f.affair && Sys.knows(id, 'affair') && st.f.affairFaced !== st.f.affair.t, run: async (st) => {
+      const X = st.f.affair.with;
+      st.f.affairFaced = st.f.affair.t;
+      await say(id, `我聽說了。你跟${nm(X)}的事。`);
+      await say(id, '……是真的嗎？');
+      const breakup = async (line) => { await say(id, line); st.p.partner = null; Sys.mem(id, `你和${nm(id)}因為${nm(X)}分手了`, -1, 'breakup'); };
+      const c = await choose([
+        { t: '「是真的。對不起。」', v: 'confess' },
+        { t: '「只是朋友吃個飯，你想太多了。」', sub: '（說謊）', v: 'lie' },
+        SW.CORE.includes(X) ? { t: `「是${nm(X)}一直來找我的。」`, sub: '把責任推出去', v: 'blame' } : null,
+        { t: '「……我們分開吧。」', v: 'end' },
+      ].filter(Boolean));
+      const r = st.rel[id];
+      if (c === 'confess') {
+        Sys.ch(id, { trust: -20, attract: -12, tension: 18 }); stat('confessed');
+        if (r.comfort >= 62 && r.attract >= 50) { await say(id, '……謝謝你沒有騙我。但我需要時間。不要現在跟我說話。'); Sys.mem(id, '你承認了跟別人約會', -1, 'affairConfess'); }
+        else await breakup('……那我們先分開吧。至少你沒有騙我。');
+      } else if (c === 'lie') {
+        if (Math.random() < 0.3 + r.comfort * 0.004) {
+          Sys.lie({ id: 'affair_' + st.f.affair.t, to: id, text: `你說跟${nm(X)}只是朋友吃飯`, w: [X], weight: 22, chance: 0.25, caught: '{W}跟我說了那天的事。全部。' });
+          await say(id, '……真的嗎？好。我相信你。');
+          await inner(`${nm(id)}抱了你一下。你的手機在口袋裡震了一聲，你沒有拿出來看。`);
+        } else await breakup('你知道最傷人的是什麼嗎？不是你去約會。是你到現在還在騙我。');
+      } else if (c === 'blame') {
+        Sys.pch(id, X, { tension: 20, trust: -15 }); stat('blamed');
+        Sys.lie({ id: 'affairBlame_' + st.f.affair.t, to: id, text: `你說是${nm(X)}一直來找你`, w: [X], victim: X, weight: 22, chance: 0.3, caught: `我去找${nm(X)}談了。${nm(X)}給我看了你們的對話紀錄。` });
+        await say(id, `……我會去問清楚。`);
+        await inner(`你想像${nm(id)}去找${nm(X)}的那個畫面。你沒有阻止。`);
+      } else await breakup('……好。');
+    } });
+  }
+
+  // =====================================================================
+  // THE PERSON YOUR CHOICES ADD UP TO
+  // =====================================================================
+  Human.profile = function () {
+    const st = S(), s = st.stats, lies = (st.lies || []).filter((l) => l.kind !== 'white' && !/_blame$/.test(l.id));
+    const caught = lies.filter((l) => l.exposed || l.resolved).length;
+    const leaked = Object.keys(st.f).filter((k) => /^leak_/.test(k) && Array.isArray(st.f[k]) && st.f[k].length).length;
+    const kept = ['lease', 'hsiuSong', 'holiday', 'ansonPei'].filter((f) => K(f) && !(st.f['leak_' + f] || []).length).length;
+    const out = [];
+    if (!lies.length) out.push('這一週，你沒有對任何人說謊。這比聽起來難。');
+    else {
+      let l = `這一週你說了 ${lies.length} 個謊，其中 ${caught} 個被拆穿。`;
+      if (s.confessed) l += '被拆穿的時候，你至少有一次選擇了承認。';
+      if (s.blamed) l += `你也曾經把責任推到別人身上。`;
+      if (s.doubled) l += '有人選擇了相信你的第二個謊。';
+      out.push(l);
+    }
+    if (s.whiteLies) out.push(`你還說了 ${s.whiteLies} 個善意的謊——為了讓某個人好過一點。`);
+    if (kept && !leaked) out.push(`別人託付給你的秘密，你一個都沒有說出去。`);
+    else if (leaked) out.push(`有 ${leaked} 個別人的秘密，是從你這裡傳出去的。`);
+    const T3 = [];
+    if (st.f.credit === 'honest') T3.push('課長問起功勞時，你說了米拉的名字');
+    if (st.f.credit === 'stole') T3.push(st.f.creditRevealed === 'returned' ? '你搶了米拉的功勞，後來又還了回去' : '你把米拉的發現說成是自己的');
+    if (st.f.evalHsiu === 'praise') T3.push('課長問你怎麼看阿修時，你替他說了好話');
+    if (st.f.evalHsiu === 'undermine' || st.f.evalHsiu === 'expose') T3.push(st.f.hsiuSaid === 'praise' ? '你在課長面前扯了阿修後腿——而他替你說了好話' : '你在課長面前扯了阿修後腿');
+    if (st.f.bloom === 'refused' || st.f.bloom === 'redirect') T3.push('面對 Bloom 的信封，你沒有收');
+    if (st.f.bloom === 'toldPei') T3.push('Bloom 找上你的時候，你第一個告訴了小沛');
+    if (st.f.bloom === 'sold') T3.push('你收下了 Bloom 的信封，說出了小沛的底線');
+    if (st.f.bloom === 'fooled') T3.push('你收下了 Bloom 的信封，然後騙了他們');
+    if (s.cheated) T3.push('你有另一半，卻還和別人約會');
+    if (s.pried) T3.push('你趁別人喝醉，問了不該問的事');
+    if (T3.length) out.push(T3.join('；') + '。');
+    // what nobody knows yet
+    const hidden = [];
+    for (const l of lies) if (!l.exposed && !l.resolved) hidden.push(l.text);
+    if (st.f.bloom === 'sold' && !st.f.bloomRevealed) hidden.push('那個信封');
+    if (st.f.affair && !SW.CORE.some((id) => Sys.knows(id, 'affair'))) hidden.push(`你和${nm(st.f.affair.with)}的約會`);
+    if (st.f.hsiuQuitEval) hidden.push('阿修那首歌為什麼沒有唱');
+    // who you were
+    const bad = (s.betrayals || 0) + (s.cheated || 0) + (s.blamed || 0);
+    let title;
+    if (bad >= 3) title = '精明的生存者';
+    else if (bad >= 1 && (s.confessed || 0) >= 1) title = '會回頭的人';
+    else if (lies.length >= 3 && s.whiteLies) title = '溫柔的騙子';
+    else if (lies.length >= 3) title = '習慣說謊的人';
+    else if (!lies.length && !bad && (st.f.bloom === 'refused' || st.f.bloom === 'toldPei' || st.f.credit === 'honest' || st.f.evalHsiu === 'praise')) title = '老實得有點吃虧的人';
+    else if (s.helped >= 4) title = '大家的後盾';
+    else if (s.broken >= 3) title = '總是缺席的人';
+    else title = '有好有壞的普通人';
+    const html = `<div class="card-sec"><h4>你是怎樣的人</h4>${out.map((l) => `<p>${U.esc(l)}</p>`).join('')}<p><span class="tag ${bad ? 'bad' : 'good'}">${title}</span></p></div>`
+      + (hidden.length ? `<div class="card-sec"><h4>到現在還沒有人知道的事</h4><ul>${hidden.map((h) => `<li>🤫 ${U.esc(h)}</li>`).join('')}</ul><p class="muted">世界還在前進。秘密不會永遠是秘密。</p></div>` : '');
+    return { html, title };
+  };
+
+  // Vivian is not a friend; she is a business card with a smile
+  const baseMinorRun = SW.Talk.minorRun;
+  SW.Talk.minorRun = async function (id, v) {
+    if (id !== 'vivian') return baseMinorRun(id, v);
+    await SW.scene(async () => { await say('vivian', U.pick(['這條街的人流，其實比數據上好看。', '我不是壞人。我只是比較早學會，每個東西都有價格。', '您的朋友很幸運，有人這麼在乎那間店。'])); });
+  };
 })(window.SW);
 
 // ---- js/phone.js
@@ -7397,11 +8014,13 @@ window.SW = window.SW || {};
     const mems = Sys.memsOf(id).slice().reverse();
     const proms = st.prom.filter((p) => p.who === id).slice(-6).reverse();
     const facts = Object.keys(st.knows.player).filter((f) => SW.FACTS[f].owner === id || (f === 'rumorLele' && (id === 'hsiu' || id === 'lele')));
+    const lies = (st.lies || []).filter((l) => l.to.includes(id));
     const pairs = SW.CORE.filter((o) => o !== id).map((o) => [o, SW.Talk.pairWord(id, o)]).filter(([, w]) => w);
     const tags = Sys.tiers(id).map(([t, c]) => `<span class="tag ${c}">${t}</span>`).join('');
     const html = `<div class="prof">${av(id).replace('class="av"', 'class="av" style="width:64px;height:64px;font-size:28px;margin:0 auto;background:' + ch.color + '"')}<div class="h" style="margin-top:8px">${U.esc(ch.name)}${ch.age ? `・${ch.age}歲` : ''}</div><div class="muted">${U.esc(ch.job)}</div><p style="font-size:13.5px;line-height:1.6;text-align:left">${U.esc(ch.bio || '')}</p><div>${tags}</div></div>
       <div class="card-sec"><h4>你們的共同回憶（${mems.length}）</h4>${mems.length ? `<ul>${mems.slice(0, 12).map((m) => `<li>${m.tone > 0 ? '💚' : m.tone < 0 ? '💢' : '・'} <b>${T.dayName(Math.floor(m.t / 1440) + 1)}</b> ${U.esc(m.text)}</li>`).join('')}</ul>` : '<p class="muted">還沒有。去認識對方吧。</p>'}</div>
       ${proms.length ? `<div class="card-sec"><h4>約定</h4><ul>${proms.map((p) => `<li>${{ pending: '⏳', kept: '✅', broken: '💔', cancelled: '↩️' }[p.status]} ${U.esc(SW.tx(p.text))}（${T.rel(p.from)}）</li>`).join('')}</ul></div>` : ''}
+      ${lies.length ? `<div class="card-sec"><h4>你對${U.esc(ch.name)}說過的謊</h4><ul>${lies.map((l) => `<li>${l.kind === 'white' ? '🤍' : l.resolved === 'confess' ? '🙏' : l.exposed || l.resolved ? '💥' : '🤫'} ${U.esc(l.text)}<small class="muted">${l.kind === 'white' ? '・善意的謊' : l.resolved === 'confess' ? '・你承認了' : l.exposed || l.resolved ? '・被拆穿了' : '・對方還相信著'}</small></li>`).join('')}</ul></div>` : ''}
       ${facts.length ? `<div class="card-sec"><h4>你知道的事</h4><ul>${facts.map((f) => `<li>${SW.FACTS[f].false ? '❓' : '🔒'} ${U.esc(SW.FACTS[f].text)}</li>`).join('')}</ul></div>` : ''}
       ${pairs.length ? `<div class="card-sec"><h4>你感覺到的人際關係</h4><ul>${pairs.map(([o, w]) => `<li>${U.esc(ch.name)} ↔ ${U.esc(nm(o))}：${U.esc(w)}</li>`).join('')}</ul></div>` : ''}
       <div class="card-sec"><h4>對方在意的事</h4><p>${U.esc(ch.values || '還不太了解。')}</p></div>`;

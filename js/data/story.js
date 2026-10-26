@@ -24,7 +24,7 @@
   SW.EPISODES = {
     1: { kicker: 'EP01・星期一', title: '今天可以準時下班嗎？', lines: [['A線', '主管要你下午五點前解掉 Bug #4521。'], ['B線', '晚上七點，米拉幫小沛辦了驚喜生日派對。不要說出去。'], ['C線', '樂樂覺得阿修最近怪怪的。']] },
     2: { kicker: '第二天・星期二', title: 'Code Review 是一種格鬥技', lines: [['A線', '早上十點，阿修主持 code review。Feature Owner 的位子只有一個。'], ['B線', '樂樂今晚和男友約在好日子餐酒館。氣氛好像不太妙。'], ['C線', '小沛的笑容越來越用力了。']] },
-    3: { kicker: 'EP02・星期三', title: '誰睡在我們家沙發上？', lines: [['A線', '新的 Bug，舊的承諾。'], ['B線', '剛分手的樂樂需要一個地方住。'], ['C線', '晚上七點，轉角老位子。有人有話要說。']] },
+    3: { kicker: 'EP02・星期三', title: '誰睡在我們家沙發上？', lines: [['A線', () => { const p = Sys.prom('miraTest'); return p && p.status === 'kept' ? '課長想知道，週一那個問題到底是誰發現的。' : '新的 Bug，舊的承諾。'; }], ['B線', '剛分手的樂樂需要一個地方住。'], ['C線', '晚上七點，轉角老位子。有人有話要說。']] },
     4: { kicker: '第四天・星期四', title: '小組、秘密與走音的情歌', lines: [['A線', '主管要找人留守週五晚上的 release。'], ['B線', '安森邀你參加今晚的教會小組，主題是「安息」。'], ['C線', '回聲工作室的預約表上，有一個奇怪的名字。']] },
     5: { kicker: 'EP03・星期五', title: '最糟糕的星期五', lines: [['A線', '18:00 FW 2.3 release。'], ['B線', '20:00 轉角 Live。'], ['C線', '教會的社區愛宴、你的約會，還有快撐不住的安森——全部都在今晚。']] },
     6: { kicker: '第六天・星期六', title: '宿醉、房東與澳洲', lines: [['A線', '下午兩點，房東陳伯來到轉角。'], ['B線', '有人在想要不要離開台灣。'], ['C線', '樂樂的人生，也需要一個新的地址。']] },
@@ -112,7 +112,7 @@
   add({ id: 'd1_absent', kind: 'phone', day: 1, from: '11:30', cond: (st) => !st.f.v_office_1, run: (st) => { msg('boss', 'boss', '你今天沒進公司？', 'd1_absent', at(1, '14:00')); } });
   R.d1_absent = [
     { t: '「我在家遠端，等等就進去。」', fn: (st) => { st.work.bossTrust -= 1; } },
-    { t: '「我今天身體不太舒服……」', fn: (st) => { st.f.sickLie = true; st.work.bossTrust -= 1; later(3, 'boss', 'boss', '好，多休息。4521 我先找阿修看。'); st.f.bug4521 = st.f.bug4521 || 'hsiu'; st.work.hsiuScore += 4; } },
+    { t: '「我今天身體不太舒服……」', fn: (st) => { st.f.sickLie = true; Sys.lie({ id: 'sick1', to: 'boss', text: '你說週一身體不舒服才沒進公司', win: [at(1, '08:30'), at(1, '18:30')], pred: 'notHome', weight: 8, chance: 0.15, caught: '{W}說，週一好像在外面看到你。' }); st.work.bossTrust -= 1; later(3, 'boss', 'boss', '好，多休息。4521 我先找阿修看。'); st.f.bug4521 = st.f.bug4521 || 'hsiu'; st.work.hsiuScore += 4; } },
     { t: '「我今天想請一天假。」', fn: (st) => { st.work.bossTrust -= 3; later(3, 'boss', 'boss', '……下次早點說。'); } },
   ];
 
@@ -496,10 +496,16 @@
     else await say('mira', '我不是生氣你沒來小沛的派對。');
     await say('mira', '我只是以為，你至少會跟我講一聲。');
     const canFix = st.p.map === 'office' && !T.weekend();
-    const c = await choose([{ t: '「對不起。我真的應該先說。」', v: 'sorry' }, { t: '「我那時候真的很忙……」', v: 'excuse' }, { t: '「我現在就補做測試給你。」', v: 'fix', if: canFix }, { t: '開玩笑：「我那天是去拯救世界了。」', v: 'joke' }, { t: '（直接走開）', v: 'leave' }]);
+    const c = await choose([{ t: '「對不起。我真的應該先說。」', v: 'sorry' }, { t: '「我那時候真的很忙……」', v: 'excuse' }, { t: '「我現在就補做測試給你。」', v: 'fix', if: canFix }, { t: '「課長那天臨時抓我去開會，我走不開。」', sub: '（說謊）', v: 'lie', if: broken.some((p) => p.id === 'miraTest') }, { t: '開玩笑：「我那天是去拯救世界了。」', v: 'joke' }, { t: '（直接走開）', v: 'leave' }]);
     for (const p of broken) st.f['apol_' + p.id] = c;
     if (c === 'sorry') { await say('mira', '……嗯。下次。'); Sys.ch('mira', { tension: -8, trust: 3 }); Sys.mem('mira', '你為爽約的事好好道了歉', 1, 'apolMira', true); }
     else if (c === 'excuse') { await say('mira', '大家都很忙。我也很忙。'); Sys.ch('mira', { tension: 2 }); }
+    else if (c === 'lie') {
+      await say('mira', '……課長？喔。那就沒辦法了。');
+      Sys.ch('mira', { tension: -5 }, true);
+      Sys.lie({ id: 'miraMeeting', to: 'mira', text: '你說週一下午被課長抓去開會', w: ['boss'], weight: 12, chance: 0.06, caught: '我今天問了課長週一那個會。他說，他那天下午在客戶那裡。' });
+      await narr('（她接受得太快了。你突然希望她多問一句。）');
+    }
     else if (c === 'fix') {
       await say('mira', '……現在？好。');
       const r = await SW.MG.debug(SW.Puzzles.forHelp('mira'), { partner: 'mira', title: '補跑米拉的 regression' });
@@ -862,6 +868,7 @@
     { t: '「轉角可以跟我們公司福委會長期合作。」', v: 'company', if: st.cafe.partner === 'company' },
     { t: '「您的母親，以前和小沛的外婆一起在這條街賣豆花，對吧？」', v: 'douhua', if: !!st.f.douhua },
     { t: '「陳伯，您在意的，是這間店有沒有人好好顧，對吧？」', v: 'care', if: !!st.f.landlordHint },
+    { t: '「陳伯，您是不是也被逼著做決定？」', v: 'son', if: !!st.f.landlordSon },
     { t: '「我可以當保證人。」', v: 'guar', if: st.p.money >= 20000 },
     { t: '（讓小沛自己說）', v: 'pei' },
   ];
@@ -880,6 +887,14 @@
       if (v === 'company') { await say('landlord', '有固定客人，那就比較不怕了。'); cut += 15000; }
       if (v === 'douhua') { await narr('陳伯愣住了。'); await say('landlord', '……你怎麼知道？'); await say('landlord', '我阿母跟她外婆，以前在這個轉角擺了二十年的攤。'); await narr('他摘下眼鏡，擦了很久。'); cut += 40000; Sys.mem('pei', '你在談判桌上說出了外婆和陳伯媽媽的豆花攤', 1, 'douhua'); }
       if (v === 'care') { await say('landlord', '……對。我不缺那幾萬塊。我只是不想看到這間店被隨便對待。'); cut += 15000; }
+      if (v === 'son') {
+        await say('landlord', '……你知道我兒子的事？');
+        await narr('陳伯沉默了很久。窗外有一台機車按了兩聲喇叭。');
+        await say('landlord', '他做生意欠了一筆錢。Bloom 出的租金，可以幫他還一半。我老了，只有這一個兒子。');
+        await say('landlord', '阿沛也是我看著長大的。我兩邊……都不想對不起。');
+        await say('pei', '……陳伯，我不知道。對不起，我只想到我自己。');
+        cut += 12000; st.f.landlordOpen = true; Sys.mem(['pei'], '你們知道了陳伯的難處', 1, 'landlordOpen', true);
+      }
       if (v === 'guar') { await say('landlord', '你願意擔保？……年輕人，你很講義氣。'); cut += 8000; st.f.guarantor = true; Sys.ch('pei', { trust: 6 }); }
       if (v === 'pei') { await say('pei', '陳伯，我想留下來。不是因為我不能走，是因為我想讓這條街，還有地方可以坐。'); cut += 8000; st.cafe.will += 8; break; }
     }
@@ -926,9 +941,13 @@
   add({ id: 'd6_lele_confess', kind: 'offscreen', day: 6, from: '12:00', cond: (st) => !!st.f.leleConfess && !st.f.leleKnowsHsiu, run: (st) => {
     st.f.leleRejectedByHsiu = true; Sys.pch('hsiu', 'lele', { tension: 12 }); Sys.npcCh('lele', { mood: -10 });
     Sys.forget('lele', 'rumorLele'); Sys.learn('lele', 'hsiuSong', 'hsiu', true);
-    msg('lele', 'lele', '我今天做了一件很蠢的事。我跟阿修告白了。他說他喜歡的是米拉。……你是不是早就知道？');
-    Sys.ch('lele', { trust: K('hsiuSong') ? -6 : 0 }, true);
+    msg('lele', 'lele', '我今天做了一件很蠢的事。我跟阿修告白了。他說他喜歡的是米拉。……你是不是早就知道？', 'd6_lele_knew', at(6, '23:30'));
   } });
+  R.d6_lele_knew = (st) => [
+    { t: K('hsiuSong') ? '「……對，我早就知道了。對不起，那不是我能說的事。」' : '「我真的不知道。你還好嗎？」', fn: () => { if (K('hsiuSong')) Sys.ch('lele', { trust: -2, comfort: 3 }, true); later(3, 'lele', 'lele', K('hsiuSong') ? '……嗯。我知道你不能說。只是有點丟臉。' : '不好。但有你問就好一點了。'); } },
+    { t: '「我也是剛剛才知道。」', if: K('hsiuSong'), fn: (s) => { const src = s.knows.player.hsiuSong && s.knows.player.hsiuSong.from; Sys.lie({ id: 'leleKnew', to: 'lele', text: '你說你不知道阿修喜歡米拉', w: SW.CORE.includes(src) ? [src] : ['hsiu'], weight: 8, chance: 0.2, caught: '{W}說你很早就知道了。' }); later(3, 'lele', 'lele', '……好吧。那我們一起當笨蛋。'); } },
+    { t: '「喜歡一個人從來都不蠢。」', fn: () => { Sys.ch('lele', { comfort: 4 }, true); later(3, 'lele', 'lele', '……你這句話我要截圖。'); } },
+  ];
   add({ id: 'trip', kind: 'manual', once: false, run: async (st) => {
     const fol = st.p.follower;
     if (!(await Sys.confirmTime(300, '南寮漁港小旅行'))) return;
@@ -972,13 +991,15 @@
     let s = { go: 3, stay: -2, miss: -1, self: 1 }[st.f.miraAdvice] || 0;
     if (st.f.hsiuMira === 'couple') s -= 2;
     if (st.f.miraWalkaway) s += 1;
+    if (st.f.credit === 'stole' && st.f.creditRevealed !== 'returned') s += 1.5;
     if (st.rel.mira.trust >= 65) s += 0.5;
     s += Math.random() * 1.6 - 0.8;
     st.f.miraDecision = s > 0.6 ? 'go' : s < -0.6 ? 'stay' : 'delay';
   } });
   Story.outcome = function (st) {
     const c = st.cafe;
-    const need = Math.max(60000, c.need - (c.cut || 0));
+    const bloom = st.f.bloom === 'sold' ? 25000 : st.f.bloom === 'fooled' ? -6000 : 0; // what Bloom knew about her
+    const need = Math.max(60000, c.need - (c.cut || 0) + bloom);
     const total = c.fund + (c.crowd || 0) + (c.partner === 'company' ? 20000 : 0);
     if (st.f.churchOffer && !c.partner) c.partner = 'church';
     if (total >= need && c.will >= 40) return 'renew';
@@ -999,6 +1020,7 @@
     await say('pei', '{N}……你覺得，不管結果怎樣，我都可以接受嗎？');
     const c = await choose([{ t: '「可以。因為你不是一個人接受。」', v: 1 }, { t: '「不管怎樣，你都還是小沛。」', v: 2 }, { t: '「我不知道。但我會在。」', v: 3 }]);
     st.cafe.will += c === 1 ? 6 : c === 2 ? 5 : 4;
+    if (st.f.bloom === 'sold') { await say('landlord', '而且……Bloom 那邊好像很清楚阿沛的狀況。比我還清楚。'); await narr('（小沛轉頭看了你一眼。只是一眼。她什麼都不知道。）'); }
     const out = Story.outcome(st);
     st.cafe.outcome = out;
     if (out === 'renew') {
@@ -1136,8 +1158,10 @@
     if (s.dates >= 2) titles.push('約會達人');
     if (s.church >= 2) titles.push('教會常客');
     if (s.gigs >= 1) titles.push('轉角的吉他手');
-    if (!titles.length) titles.push('普通但真實的人');
+    const prof = SW.Human ? SW.Human.profile() : { html: '', title: null };
+    if (!titles.length && !prof.title) titles.push('普通但真實的人');
     const html = `<div class="card-sec"><h4>這個世界現在的樣子</h4><ul>${world.filter(Boolean).map((w) => `<li>${U.esc(w)}</li>`).join('')}</ul></div>${ppl}
+${prof.html}
       <div class="card-sec"><h4>你這一週</h4><p>修好 ${s.bugs} 個 Bug・惡搞 ${s.pranks} 次・摸魚 ${s.slacked} 次・約會 ${s.dates} 次・守約 ${s.kept} 次・爽約 ${s.broken} 次・幫助別人 ${s.helped} 次・去教會 ${s.church} 次・運動 ${s.workouts} 次・下廚 ${s.cooked} 次</p><p>${titles.map((t) => `<span class="tag good">${t}</span>`).join('')}</p></div>
       <p class="muted">這不是結局。世界會繼續前進，而且會記得這一週。你可以繼續生活，或在手機「設定」重新開始，活一個完全不同的版本。</p>`;
     await UI.card({ kicker: '第一季・第一週回顧', title: '我們還有地方可以坐嗎？', html, buttons: [{ t: '繼續生活', v: 1 }] });
@@ -1206,8 +1230,15 @@
         lele: ['你上次放我鴿子！！', '我在那邊等了好久，還被店員同情了！'],
       }[id];
       for (const l of L) await say(id, l);
-      const c = await choose([{ t: '「對不起，是我不好。」', v: 'sorry' }, { t: '「那天真的有事……」', v: 'excuse' }, { t: '「下次我一定到。我們重新約。」', v: 'remake' }]);
+      const away = p.where && p.where !== 'home';
+      const c = await choose([{ t: '「對不起，是我不好。」', v: 'sorry' }, { t: '「那天真的有事……」', v: 'excuse' }, { t: '「那天家裡臨時出了點事。」', sub: away ? '（說謊）' : '', v: 'home' }, { t: '「下次我一定到。我們重新約。」', v: 'remake' }]);
       st.f['apol_' + p.id] = c;
+      if (c === 'home') {
+        await say(id, '……喔！那你家還好嗎？');
+        Sys.ch(id, { tension: -6, trust: 1 }, true);
+        if (away) Sys.lie({ id: 'excuse_' + p.id, to: id, text: `你說「${SW.tx(p.text)}」那天是家裡出事`, win: [p.from - 30, p.until], pred: 'notHome', weight: 9, chance: 0.25, caught: '{W}說，那天在外面看到你。你家裡沒事，對吧？' });
+        return;
+      }
       if (c === 'sorry') { Sys.ch(id, { tension: -7, trust: 2 }); await say(id, '……嗯。好。'); }
       else if (c === 'excuse') { Sys.ch(id, { tension: -2 }); await say(id, '好吧。'); }
       else { Sys.ch(id, { tension: -5 }); await say(id, '你說的喔。'); UI.closeDialog(); await SW.Acts.invite(id, false); }
