@@ -84,7 +84,7 @@
     msg('lele', 'lele', '我覺得阿修最近怪怪的，你知道什麼嗎？', 'd1_lele', at(1, '23:30'));
     Sys.learn('player', 'party', 'mira', true);
     st.f.trust_party = true;
-    UI.toast('📱 點右上角手機（或按 P）回訊息。走到下方出口出門。');
+    UI.toast(SW.R3 && SW.R3.mobile ? '📱 點右上角手機回訊息。走到發亮的門口出門。' : '📱 按 P（或點右上角手機）回訊息。走到發亮的門口出門。');
   } });
   R.d1_boss = [
     { t: '「沒問題！五點前搞定。」', fn: (st) => { st.f.bossPromise = 'yes'; Sys.promise({ id: 'bug4521', who: 'boss', text: '修好 Bug #4521', map: 'office', from: st.t, until: at(1, '17:00'), kind: 'task', onBreak: 'bossBroken', onKeep: 'bossKept', breakText: '答應五點前修好 4521，沒做到', noWarn: false }); later(2, 'boss', 'boss', '好。我跟客戶說了。'); } },
@@ -764,6 +764,7 @@
   add({ id: 'd5_gig_off', kind: 'offscreen', day: 5, from: '22:30', cond: (st) => !st.f.gigDone, run: (st) => { gigScene(st, false); } });
   async function gigScene(st, present) {
     st.f.gigDone = present ? 'present' : 'absent';
+    if (present) Sys.keep('gig', true); // showing up is what was promised, whatever you do once there
     const big = !!st.f.gigPlanned;
     let raised = 0, playerScore = 0;
     const L = present ? async (w, t, e) => (w === 'narr' ? narr(t) : say(w, t, e)) : async () => {};
@@ -788,10 +789,9 @@
         await narr(r.score > 75 ? '最後一個和弦落下，整間店安靜了一秒，然後爆出掌聲。' : '你錯了幾個音，但小沛笑著對你點頭，台下也跟著打拍子。');
         Sys.ch('pei', { friend: 5, attract: r.score > 75 ? 3 : 1, trust: 3 }); st.stats.gigs++;
         Sys.mem('pei', '你在轉角的 Live 上台和小沛一起表演', 1, 'gigPlay');
-        if (Sys.pending('gig')) { Sys.prom('gig').status = 'kept'; st.stats.kept++; }
       } else if (c === 'film') { raised += big ? 3000 : 0; st.cafe.promo += 1; await narr('你拍的影片後來被分享了好幾百次。'); }
       else Sys.ch('pei', { comfort: 2 }, true);
-    } else if (present && Sys.pending('gig')) { Sys.prom('gig').status = 'kept'; st.stats.kept++; }
+    }
     // 阿修's song
     const hsiuHere = st.n.hsiu.map === 'cafe' || (!st.f.hsiuStuck && st.f.releaseOwner !== 'hsiu') || st.f.hsiuFree;
     const miraHere = !(st.f.releaseOwner === 'player' && false);
@@ -1119,7 +1119,9 @@
     const W = st.work;
     world.push(W.legend >= 10 ? '😈 你成了韌體部門的傳奇人物（不全是好事）。' : W.perf >= 8 ? '💻 你這週的工作表現很亮眼。Feature Owner 明天揭曉。' : '💻 Feature Owner 明天揭曉。');
     const ppl = SW.CORE.map((id) => {
-      const mems = Sys.memsOf(id).filter((m) => m.tone !== 0).slice(-3);
+      const all = Sys.memsOf(id).filter((m) => m.tone !== 0);
+      const own = all.filter((m) => m.who.length === 1); // one-on-one moments say more than group ones
+      const mems = own.slice(-4).concat(all.filter((m) => m.who.length > 1).slice(-Math.max(0, 4 - own.length))).sort((x, y) => x.t - y.t);
       const tags = Sys.tiers(id).map(([t, c]) => `<span class="tag ${c}">${t}</span>`).join('');
       return `<div class="card-sec"><h4>你和${nm(id)}</h4><div>${tags}</div>${mems.length ? `<ul>${mems.map((m) => `<li>${m.tone > 0 ? '💚' : '💢'} ${U.esc(m.text)}</li>`).join('')}</ul>` : '<p class="muted">這週你們幾乎沒有交集。</p>'}</div>`;
     }).join('');
@@ -1148,6 +1150,17 @@
   // =====================================================================
   // WEEK 2+ — the world keeps going
   // =====================================================================
+  // the outcome becomes physical: the café empties out and everyone's hangout moves with it
+  add({ id: 'd8_cafe_move', kind: 'offscreen', from: '07:00', cond: (st) => T.day() >= 8 && !st.f.cafeEmptied && (st.cafe.outcome === 'close' || st.cafe.outcome === 'relocate'), run: (st) => {
+    st.f.cafeEmptied = true;
+    if (st.cafe.outcome === 'close') {
+      msg('group', 'pei', '轉角的東西我這週慢慢搬。咖啡機先寄放在好日子，老蔡說吧台借我一角。之後想喝咖啡，來好日子找我☕');
+    } else {
+      const where = SW.PLACES[SW.Sched.cafeMap()].name;
+      msg('group', 'pei', `搬家完成！！新轉角在「${where}」，今天開始營業～位子比較少，但窗戶很大🪟 大家的老位子我都留著。`);
+    }
+    if (st.f.leleStay === 'cafe') st.f.leleStay = 'own';
+  } });
   add({ id: 'd8_feature', kind: 'approach', npc: 'boss', day: [8, 9, 10], where: 'office', prio: 60, run: async (st) => {
     const W = st.work;
     const me2 = W.perf * 3 + W.bossTrust * 0.6 + W.bugsDone.length * 3 + (st.f.releaseDone === 'player' ? 12 : 0) + (st.f.releaseOwner === 'auto' ? 10 : 0) - W.warn * 8 - Math.max(0, W.legend - 8);
@@ -1283,7 +1296,12 @@
     Sys.mem(who, `你好幾天沒出門，${nm(who)}帶著吃的來看你`, 1, 'careVisit');
     SW.Sched.clearOv('care');
   } });
-  add({ id: 'payday', kind: 'phone', day: 5, from: '10:00', run: (st) => { Sys.money(38000); msg('boss', 'boss', '【人資通知】本月薪資已入帳，辛苦了。'); UI.toast('💰 薪水入帳 NT$38,000'); } });
+  add({ id: 'payday', kind: 'phone', day: 5, from: '10:00', run: (st) => {
+    const missed = [1, 2, 3, 4].filter((d) => !st.f['v_office_' + d]).length, pay = 38000 - missed * 1800;
+    Sys.money(pay);
+    msg('boss', 'boss', missed ? `【人資通知】本月薪資已入帳。本週曠職 ${missed} 天，依規定扣薪 ${U.money(missed * 1800)}。` : '【人資通知】本月薪資已入帳，辛苦了。');
+    UI.toast(`💰 薪水入帳 ${U.money(pay)}`);
+  } });
   // a gentle nudge when the player has done nothing all day
   add({ id: 'lazy_check', kind: 'phone', once: false, cooldown: 1400, from: '16:00', to: '17:00', cond: (st) => st.p.map === 'home' && !st.f['v_office_' + T.day()] && !T.weekend() && T.day() <= 7, run: () => {
     const w = U.pick(['lele', 'pei', 'mira']);

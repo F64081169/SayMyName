@@ -21,10 +21,9 @@ writeFileSync(join(root, 'dist/index.html'), out);
 console.log(`dist/index.html  ${(out.length / 1024).toFixed(0)} KB, ${scripts.length} scripts inlined`);
 
 if (process.argv.includes('--fragment')) {
-  const font = (html.match(/<link rel="stylesheet" href="https:\/\/fonts[^>]+>/) || [''])[0];
   const own = scripts.filter((s) => !s.startsWith('vendor/'));
   const bodyHtml = html.slice(html.indexOf('<body>') + 6, html.indexOf('<script src='));
-  const frag = `<title>Shannon's World</title>\n${font}\n<style>\n${css}\n</style>\n${bodyHtml}<script src="${THREE_CDN}"></script>\n<script>\n${bundle(own)}\n</script>\n`;
+  const frag = `<title>Shannon's World</title>\n<style>\n${css}\n</style>\n${bodyHtml}<script src="${THREE_CDN}"></script>\n<script>\n${bundle(own)}\n</script>\n`;
   writeFileSync(join(root, 'dist/fragment.html'), frag);
   console.log(`dist/fragment.html  ${(frag.length / 1024).toFixed(0)} KB (Three.js from CDN)`);
 }

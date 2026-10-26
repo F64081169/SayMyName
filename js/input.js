@@ -29,7 +29,7 @@
       }
       if (!$('sheet').hidden) {
         if (k === 'Escape') UI.closeSheet(true);
-        const n = parseInt(k, 10); if (n >= 1 && n <= 9) { const b = $('sheet-items').querySelectorAll('.sitem:not([disabled])')[n - 1]; if (b) b.click(); }
+        const n = parseInt(k, 10); if (n >= 1 && n <= 9) { const b = $('sheet-items').querySelectorAll('.sitem')[n - 1]; if (b && !b.disabled) b.click(); }
         return;
       }
       if (!$('phone').hidden) { if (k === 'Escape' || k === 'p' || k === 'P') SW.Phone.close(); return; }
@@ -90,7 +90,8 @@
     $('phone-close').addEventListener('click', () => SW.Phone.close());
     $('phone-back').addEventListener('click', () => { if (SW.Phone.back) SW.Phone.back(); });
     $('sheet-close').addEventListener('click', () => UI.closeSheet(true));
-    $('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') UI.closeSheet(true); });
+    // the second tap of a double-tap on the act button lands on the backdrop of the sheet it just opened: ignore it
+    $('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet' && performance.now() - (UI.sheetOpened || 0) > 400) UI.closeSheet(true); });
     $('phone').addEventListener('click', (e) => { if (e.target.id === 'phone') SW.Phone.close(); });
     $('objective').addEventListener('click', () => UI.toggleObjective());
   };

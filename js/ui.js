@@ -82,7 +82,7 @@
         b.onclick = () => { UI.closeSheet(); UI.lastClose = performance.now(); res(it.v); };
         box.appendChild(b);
       });
-      $('sheet').hidden = false;
+      $('sheet').hidden = false; UI.sheetOpened = performance.now();
       if (SW.IN) SW.IN.release();
     });
   };

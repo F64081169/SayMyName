@@ -20,7 +20,12 @@
   };
 
   SW.ACTS = {
-    coffee: { name: '喝咖啡聊天', map: 'cafe', spots: ['t6', 'g2'], icon: '☕', dur: 60 },
+    coffee: {
+      name: '喝咖啡聊天', icon: '☕', dur: 60,
+      // follows the café after week 1 (new home, or 小沛's corner of 好日子)
+      get map() { const st = SW.S; return st && st.f.cafeEmptied && st.cafe.outcome !== 'renew' ? SW.Sched.cafeMap() : 'cafe'; },
+      get spots() { return { cafe: ['t6', 'g2'], bar: ['long6', 'long5'], church: ['group1', 'group2'], office: ['tea1', 'tea2'], studio: ['sofa', 'center'] }[this.map]; },
+    },
     walk: { name: '河濱散步', map: 'city', spots: ['park3', 'park4'], icon: '🌇', dur: 60 },
     dinner: { name: '吃晚餐／喝一杯', map: 'bar', spots: ['booth2', 'booth2b'], icon: '🍽️', dur: 90 },
     gym: { name: '一起健身', map: 'gym', spots: ['center', 'yoga2'], icon: '🏋️', dur: 60 },
@@ -65,6 +70,7 @@
     const near = Acts.others(id).filter((o) => SW.CH[o].core || o === 'zhe' || o === 'landlord');
     const items = [
       story ? { icon: '💬', t: story.label || `${ch.name}好像有話想說`, sub: '劇情', v: 'story', hot: true } : null,
+      id === 'pei' && st.f.cafeEmptied && /顧店|幫老蔡/.test(n.act || '') ? { icon: '☕', t: '跟小沛點一杯拿鐵', sub: 'NT$80・+體力', v: 'coffee' } : null,
       { icon: '🗨️', t: '聊天', sub: '聊聊近況', v: 'talk' },
       { icon: '😂', t: '開玩笑', sub: '冷笑話／吐槽／自嘲', v: 'joke' },
       { icon: '😏', t: '調情', sub: '看對方怎麼接', v: 'flirt' },
@@ -84,6 +90,10 @@
     if (!v) return;
     switch (v) {
       case 'story': return SW.Dir.run(story);
+      case 'coffee':
+        if (!Sys.pay(80)) return;
+        Sys.energy(14); st.cafe.fund += 80;
+        return SW.scene(async () => { await say('pei', st.cafe.outcome === 'close' ? U.pick(['老蔡的吧台很好用欸。就是他一直想在拿鐵裡加威士忌。', '同一台咖啡機，同一個我。只是窗外的風景換了。']) : U.pick(['新轉角的第一批常客，你是其中一個。', '這裡的水比較軟，拉花變好看了！……你看，這次真的是貓。'])); });
       case 'talk': return Acts.talk(id);
       case 'joke': return Acts.joke(id);
       case 'flirt': return Acts.flirt(id);
@@ -264,9 +274,15 @@
     if (!byPhone) out.push({ abs: 'now', label: '現在就走', sub: '對方跟你一起移動' });
     else out.push({ abs: now + 30, label: '半小時後', sub: T.rel(now + 30) });
     const cand = [[d, '12:30', '今天中午 12:30'], [d, '18:30', '今天 18:30'], [d, '19:30', '今天晚上 19:30'], [d, '21:00', '今天 21:00'], [d + 1, '12:30', '明天中午 12:30'], [d + 1, '19:30', '明天晚上 19:30'], [d + 2, '19:30', `${T.dayName(d + 2)}晚上 19:30`], [d + 2, '14:00', `${T.dayName(d + 2)}下午 14:00`]];
-    for (const [dd, hm, label] of cand) { const abs = T.at(dd, hm); if (abs > now + 25) out.push({ abs, label, sub: T.dayName(dd) }); }
+    for (const [dd, hm, label] of cand) {
+      const abs = T.at(dd, hm); if (abs <= now + 25) continue;
+      const c = Acts.myClash(abs);
+      out.push({ abs, label, sub: c ? `⚠️ 已經約了：${SW.tx(c.text)}` : T.dayName(dd) });
+    }
     return out;
   };
+  // the player's own commitments near a time (any person, story promises included)
+  Acts.myClash = (abs, except) => S().prom.find((p) => p.status === 'pending' && p.kind === 'meet' && p.who !== except && Math.abs(p.from - abs) < 90);
   Acts.answer = function (id, actId, abs, romantic) {
     const st = S(), r = st.rel[id], n = st.n[id], A = SW.ACTS[actId];
     const when = abs === 'now' ? st.t : abs;
@@ -274,7 +290,7 @@
     if (busy) {
       let alt = null;
       for (let k = 1; k < 10; k++) { const t2 = (abs === 'now' ? st.t : when) + k * 90; const hm = t2 % 1440; if (hm < 9 * 60 || hm > 22 * 60) continue; if (Sched.freeAt(id, t2)) { alt = t2; break; } }
-      return { ok: false, line: SW.Talk.busyLine(id, busy) + (alt ? `\n${T.rel(alt)}以後應該可以？` : '') };
+      return { ok: false, alt, line: SW.Talk.busyLine(id, busy) + (alt ? `\n${T.rel(alt)}以後應該可以？` : '') };
     }
     const clash = st.prom.find((p) => p.status === 'pending' && p.who === id && Math.abs(p.from - when) < 120);
     if (clash) return { ok: false, line: `我們不是已經約了${T.rel(clash.from)}了嗎？` };
@@ -294,6 +310,11 @@
     if (!a) return;
     const slot = await UI.sheet('什麼時候？', SW.ACTS[a].name, Acts.slots(byPhone).map((s) => ({ icon: '🕒', t: s.label, sub: s.sub, v: s.abs })));
     if (slot === null || slot === undefined) return;
+    const mine = slot !== 'now' && Acts.myClash(slot, id);
+    if (mine) {
+      const go = await UI.sheet('時間撞到了', `${T.rel(mine.from)}你已經答應了「${SW.tx(mine.text)}」。兩邊都約，可能有一邊會被放鳥。`, [{ icon: '↩️', t: '換個時間', v: 'back' }, { icon: '🤹', t: '還是約（我兩邊跑得完）', v: 'go' }]);
+      if (go !== 'go') return go === 'back' ? Acts.invite(id, byPhone) : undefined;
+    }
     let romantic = !!SW.CH[id].date;
     if (!romantic && SW.CH[id].core && st.rel[id].attract >= 30) {
       const v = await UI.sheet('這算約會嗎？', '說清楚比較不會誤會。', [{ icon: '🙂', t: '朋友聚聚', v: 'f' }, { icon: '💗', t: '約會', sub: '讓對方知道你是認真的', v: 'r' }]);
@@ -306,7 +327,16 @@
       if (ans.ok) Acts.book(id, a, slot, romantic, true);
       return;
     }
-    await SW.scene(async () => { await say(id, ans.line); });
+    let alt = null;
+    await SW.scene(async () => {
+      await say(id, ans.line);
+      if (!ans.ok && ans.alt && !Acts.myClash(ans.alt, id) && (await choose([{ t: `「那就${T.rel(ans.alt)}！」`, v: 1 }, { t: '「好，那下次吧。」', v: 0 }]))) {
+        const again = Acts.answer(id, a, ans.alt, romantic);
+        await say(id, again.ok ? '好啊，就這麼說定了！' : again.line);
+        if (again.ok) alt = ans.alt;
+      }
+    });
+    if (alt) return Acts.book(id, a, alt, romantic);
     if (!ans.ok) { if (romantic) Sys.ch(id, { comfort: -1 }, true); return; }
     if (slot === 'now') { st.p.follower = id; st.f.pendingJoint = { id, act: a, romantic }; UI.toast(`🚶 ${nm(id)} 跟著你。一起去${SW.PLACES[SW.ACTS[a].map].name}吧！`); if (st.p.map === SW.ACTS[a].map) Acts.joint(id, a, { romantic }); return; }
     Acts.book(id, a, slot, romantic);
@@ -346,9 +376,10 @@
   Acts.J = {
     coffee: async (id) => {
       const price = 160;
-      const v = await choose([{ t: `我請客（${U.money(price)}）`, v: 'treat' }, { t: '各付各的', v: 'split' }, { t: `${nm(id)}說要請你`, v: 'them' }]);
-      if (v === 'treat') { Sys.money(-price); Sys.ch(id, { friend: 1 }, true); await say(id, '那我就不客氣了～下次換我。'); }
-      else if (v === 'split') { Sys.money(-price / 2); }
+      const m = S().p.money;
+      const v = await choose([{ t: `我請客（${U.money(price)}）`, v: 'treat', dis: m < price }, { t: '各付各的', v: 'split', dis: m < price / 2 }, { t: `${nm(id)}說要請你`, v: 'them' }]);
+      if (v === 'treat' && Sys.pay(price)) { Sys.ch(id, { friend: 1 }, true); await say(id, '那我就不客氣了～下次換我。'); }
+      else if (v === 'split') { Sys.pay(price / 2); }
       else { await say(id, SW.S.rel[id].comfort > 60 ? '好啦好啦，今天我請。' : '……我什麼時候說的？好啦，這次就請你。'); }
       Sys.energy(12);
       return 60;
@@ -387,7 +418,7 @@
     },
     dinner: async (id, opt) => {
       const v = await choose([{ t: '你決定菜單', v: 'me' }, { t: `讓${nm(id)}點`, v: 'them' }, { t: '一起看菜單討論', v: 'both' }]);
-      const pr = 520; Sys.money(-pr);
+      const pr = 520; if (!Sys.pay(pr)) await say(id, '欸，你的卡刷不過？沒關係，這頓我先付，下次換你請。');
       if (v === 'me') await say(id, SW.S.rel[id].comfort > 55 ? '你點的都是我愛吃的欸。你是不是偷偷觀察我？' : '嗯……也可以啦。');
       else if (v === 'them') await say(id, '那我要點炸物拼盤、鹹酥雞沙拉，還有……兩杯好日子特調！');
       else { await say(id, '欸這個看起來好怪，我們點來挑戰看看？'); Sys.ch(id, { comfort: 3 }, true); }
@@ -415,11 +446,13 @@
     },
     market: async (id, opt) => {
       await narr('東門夜市的燈一盞一盞亮起來。人潮擠得像週五的公司電梯。');
-      const a = await choose([{ t: '先吃雞排', v: 'chicken' }, { t: '先去射氣球', v: 'game' }, { t: '先買兩杯珍奶', v: 'boba' }]);
-      Sys.money(a === 'game' ? -100 : a === 'boba' ? -110 : -160);
+      const m = S().p.money;
+      const a = await choose([{ t: '先吃雞排', sub: 'NT$160', v: 'chicken', dis: m < 160 }, { t: '先去射氣球', sub: 'NT$100', v: 'game', dis: m < 100 }, { t: '先買兩杯珍奶', sub: 'NT$110', v: 'boba', dis: m < 110 }, { t: '先隨便逛逛，看就好', v: 'look' }]);
+      if (a !== 'look') Sys.pay(a === 'game' ? 100 : a === 'boba' ? 110 : 160);
       if (a === 'game') { const r = await SW.MG.timing({ title: '射氣球', rounds: 4, verb: '砰！', labels: ['紅色', '藍色', '晃動的', '最後一發'], zone: 0.15 }); await say(id, r.score >= 75 ? (opt.romantic ? '大獎……你要送給我嗎？' : '你是不是偷練過！') : '哈哈哈哈老闆給你安慰獎耶！'); if (r.score >= 75) Sys.ch(id, { attract: opt.romantic ? 3 : 0, comfort: 2 }, true); }
       else if (a === 'chicken') await say(id, '雞排要趁熱！不要拍照了，快吃！');
-      else await say(id, '乾杯！珍奶乾杯是台灣的國家儀式。');
+      else if (a === 'boba') await say(id, '乾杯！珍奶乾杯是台灣的國家儀式。');
+      else await say(id, '只看不吃也很好玩啦。你看那個賣棉花糖的阿伯，他的棉花糖比他的頭還大。');
       const ev = U.pick(['crowd', 'rain', 'friend']);
       if (ev === 'crowd') { await narr('人潮突然湧上來，你們差點被沖散。'); const c = await choose([{ t: '伸手拉住對方', v: 1 }, { t: '「在雞蛋糕攤集合！」', v: 0 }]); if (c) { await say(id, opt.romantic ? '……你的手很暖。' : '好險，差點變成夜市失蹤人口。'); Sys.ch(id, { comfort: 3, attract: opt.romantic ? 3 : 0 }, true); } else await say(id, '好，雞蛋糕攤！……你在哪？我只看到一百個雞蛋糕攤！'); }
       else if (ev === 'rain') { await narr('突然下起雨。整條夜市的人同時躲進攤位的帆布底下。'); await say(id, '我們跟臭豆腐老闆一起躲雨耶。這是什麼浪漫。'); }
@@ -429,7 +462,7 @@
     },
     cook: async (id) => {
       const st = S();
-      if (!Sys.has('groceries')) { await narr('冰箱空空的。你們臨時叫了外送。'); Sys.money(-300); return 40; }
+      if (!Sys.has('groceries')) { if (Sys.pay(300)) await narr('冰箱空空的。你們臨時叫了外送。'); else await narr('冰箱空空的，錢包也是。你們分著吃了最後兩包泡麵，加了一顆蛋。'); return 40; }
       Sys.item('groceries', -1);
       const dish = await choose([{ t: '番茄炒蛋＋三杯雞（家常）', v: 'home' }, { t: '韓式部隊鍋（大份量）', v: 'pot' }, { t: '挑戰：舒芙蕾鬆餅', v: 'risky' }]);
       const res = await SW.MG.timing({ title: '一起做晚餐', rounds: 3, verb: '下鍋！', labels: ['切菜', '火候', '調味'], zone: (dish === 'risky' ? 0.11 : 0.16) + st.p.skill.cook * 0.012 });
@@ -689,7 +722,7 @@
     if (v !== 'city' && !Sys.canEnter(v)) return;
     const mins = st.p.map === 'city' || v === 'city' ? 8 : 12;
     if (!(await Sys.confirmTime(mins, '移動'))) return;
-    if (st.p.map === 'city' && !fromPhone) Sys.money(-10);
+    if (st.p.map === 'city' && !fromPhone && !Sys.pay(10)) return;
     await Sys.advance(mins, `🚲 ${fromPhone ? '移動中' : '騎 YouBike'}……`);
     SW.W.travelTo(v);
   };

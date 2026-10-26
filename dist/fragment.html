@@ -1,5 +1,4 @@
 <title>Shannon's World</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap">
 <style>
 /* Layout: full-screen canvas world, floating HUD pills, bottom dialogue card like a sitcom subtitle bar. */
 :root {
@@ -239,6 +238,16 @@ button:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; 
 
 /* mobile toast placement (must come after the base #toasts rule) */
 @media (max-width: 700px) { #toasts { top: calc(150px + var(--safe-t)); max-width: none; width: min(92vw, 420px); } }
+
+/* landscape phones: wider, shorter sheets so every option fits without scrolling */
+@media (max-height: 500px) {
+  .sheet-card { width: min(780px, 100%); max-height: 94vh; padding: 10px 12px; }
+  #sheet-title { font-size: 16px; padding-bottom: 6px; }
+  #sheet-items { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; }
+  .sitem { min-height: 44px; padding: 6px 10px; }
+  .sitem .ic { font-size: 18px; width: 22px; }
+  #sheet-close { min-height: 40px; margin-top: 6px; }
+}
 
 </style>
 
@@ -2627,7 +2636,7 @@ window.SW = window.SW || {};
   }
   const PED_SPOTS = [[10, 42], [40, 42], [70, 42], [100, 42], [115, 53], [80, 53], [50, 53], [20, 53], [22, 70], [36, 72], [91, 60], [92, 72], [30, 76], [70, 76], [100, 76], [20, 89], [60, 89], [95, 89], [56, 20], [65, 30], [20, 36], [80, 39]];
   R3.backdrop = function (dt) {
-    if (!renderer) return;
+    if (!renderer || R3.skip) return;
     const rec = R3.sceneFor('city'); cur = rec;
     R3._bd = (R3._bd || 0) + dt;
     const t = R3._bd, x = 4 + (t * 1.1) % 104;
@@ -2852,7 +2861,7 @@ window.SW = window.SW || {};
         b.onclick = () => { UI.closeSheet(); UI.lastClose = performance.now(); res(it.v); };
         box.appendChild(b);
       });
-      $('sheet').hidden = false;
+      $('sheet').hidden = false; UI.sheetOpened = performance.now();
       if (SW.IN) SW.IN.release();
     });
   };
@@ -3123,7 +3132,9 @@ window.SW = window.SW || {};
   // ---------- player stats ----------
   Sys.energy = (d) => { const p = S().p; p.energy = U.clamp(p.energy + d, 0, 100); };
   Sys.mood = (d) => { const p = S().p; p.mood = U.clamp(p.mood + d, 0, 100); };
-  Sys.money = (d) => { S().p.money = Math.round(S().p.money + d); };
+  Sys.money = (d) => { S().p.money = Math.max(0, Math.round(S().p.money + d)); };
+  // a purchase the player chose: refuses (and says so) instead of going into debt
+  Sys.pay = (price) => { const m = S().p.money; if (m < price) { UI.toast(`💸 錢不夠（還差 ${U.money(price - m)}）`, 'warn'); return false; } Sys.money(-price); return true; };
   Sys.item = (id, d) => { const inv = S().p.inv; inv[id] = (inv[id] || 0) + (d === undefined ? 1 : d); if (inv[id] <= 0) delete inv[id]; };
   Sys.has = (id) => (S().p.inv[id] || 0) > 0;
   Sys.skill = (k, d) => { const s = S().p.skill; s[k] = U.clamp((s[k] || 0) + d, 0, 10); if (d >= 0.5) UI.toast(`📈 ${{ debug: 'Debug', guitar: '吉他', fitness: '體能', cook: '廚藝' }[k]}技巧提升了`, ''); };
@@ -3247,7 +3258,24 @@ window.SW = window.SW || {};
 
   // ---------- schedule ----------
   const Sched = SW.Sched = {};
-  const BUSY = /跑測試|寫測試報告|寫 code|學校|上班|顧店|帶小組|布置|服事|準備|演出|樂團練習|加班|派對|和阿哲|偷偷練歌|主管辦公室|release|談租約|帶學員|顧吧台|整理店務|講道|休息中/;
+  const BUSY = /跑測試|寫測試報告|寫 code|學校|上班|顧店|帶小組|布置|服事|準備|演出|樂團練習|加班|派對|和阿哲|偷偷練歌|主管辦公室|release|談租約|帶學員|顧吧台|整理店務|講道|休息中|聚會|幫老蔡/;
+  // after day 7 the café's crowd follows the café: to its new home, or to 好日子 if it closed
+  const CAFE_MOVE = {
+    bar: { counter: 'stool1', stage: 'booth1', t1: 'long1', t2: 'long2', t3: 'long3', t4: 'long4', t5: 'long5', t6: 'long6', g1: 'long5', g2: 'long6' },
+    church: { counter: 'kitchen', stage: 'pulpit2', t1: 'group1', t2: 'group2', t3: 'group3', t4: 'kitchen2', t5: 'pew3', t6: 'pew4', g1: 'pew1', g2: 'pew2' },
+    office: { counter: 'lobby', stage: 'lobby', t1: 'tea1', t2: 'tea2', t3: 'meet1', t4: 'meet2', t5: 'tea1', t6: 'tea2', g1: 'meet1', g2: 'meet2' },
+    studio: { counter: 'center', stage: 'mic', t1: 'sofa', t2: 'drums', t3: 'guitar', t4: 'booth', t5: 'sofa', t6: 'center', g1: 'guitar', g2: 'drums' },
+  };
+  Sched.cafeMap = () => { const c = S().cafe; return c.outcome === 'close' ? 'bar' : ({ church: 'church', company: 'office', studio: 'studio' }[c.partner] || 'church'); };
+  function movedCafe(id, r) {
+    if (r.map !== 'cafe' || !S().f.cafeEmptied || S().cafe.outcome === 'renew') return r;
+    const map = Sched.cafeMap(), spot = CAFE_MOVE[map][r.spot];
+    if (!spot) return { map: 'away', spot: null, act: r.act, busy: r.busy };
+    let act = r.act;
+    if (id === 'pei' && /顧店|整理店務/.test(act)) act = map === 'bar' ? '在好日子幫老蔡' : '新轉角・顧店';
+    else if (act === '在咖啡廳') act = map === 'bar' ? '在好日子' : '在新轉角';
+    return Object.assign({}, r, { map, spot, act });
+  }
   Sched.homeOf = function (id) {
     const st = S(), m = T.mod();
     if (st.p.roommate === id) return { map: 'home', spot: 'roomMate' };
@@ -3257,7 +3285,8 @@ window.SW = window.SW || {};
     }
     return { map: 'away', spot: null };
   };
-  Sched.base = function (id, abs) {
+  Sched.base = (id, abs) => movedCafe(id, baseSched(id, abs));
+  function baseSched(id, abs) {
     const st = S(); const t = abs == null ? st.t : abs;
     const d = Math.floor(t / 1440) + 1, dow = (d - 1) % 7, m = t % 1440;
     // overrides (latest wins)
@@ -3280,7 +3309,7 @@ window.SW = window.SW || {};
       return { map: b.map, spot: b.spot, act: b.act, busy: BUSY.test(b.act) };
     }
     return { map: 'away', spot: null, act: '' };
-  };
+  }
   Sched.goal = function (id) {
     const st = S(), n = st.n[id];
     if (st.p.follower === id) return { map: st.p.map, follow: true, act: '跟你一起' };
@@ -3346,7 +3375,7 @@ window.SW = window.SW || {};
     }));
     if (!v) return;
     const it = SW.ITEMS[v];
-    Sys.money(-it.price); Sys.item(v, 1);
+    if (!Sys.pay(it.price)) return; Sys.item(v, 1);
     UI.toast(`🛍️ 買了 ${it.icon} ${it.name}`);
     return Sys.shop();
   };
@@ -3365,7 +3394,8 @@ window.SW = window.SW || {};
     if (map === 'church' && (m >= 22 * 60 || m < 7 * 60)) { UI.toast('教會的門鎖上了。'); return false; }
     if (map === 'gym' && (m >= 23 * 60 || m < 6 * 60)) { UI.toast('健身房打烊了。'); return false; }
     if (map === 'studio' && (m >= 24 * 60 || m < 10 * 60)) { UI.toast('工作室還沒開。'); return false; }
-    if (map === 'cafe' && S().cafe.outcome === 'close' && S().f.cafeEmptied) { UI.toast('轉角咖啡廳的鐵門拉下來了。上面貼著一張手寫的「謝謝大家」。'); return false; }
+    if (map === 'cafe' && S().cafe.outcome === 'close' && S().f.cafeEmptied) { UI.toast('轉角咖啡廳的鐵門拉下來了。上面貼著一張手寫的「謝謝大家」。小沛現在在好日子。'); return false; }
+    if (map === 'cafe' && S().cafe.outcome === 'relocate' && S().f.cafeEmptied) { UI.toast(`轉角搬家了。門上貼著新地址：${SW.PLACES[Sched.cafeMap()].name}。`); return false; }
     return true;
   };
 })(window.SW);
@@ -3393,7 +3423,12 @@ window.SW = window.SW || {};
   };
 
   SW.ACTS = {
-    coffee: { name: '喝咖啡聊天', map: 'cafe', spots: ['t6', 'g2'], icon: '☕', dur: 60 },
+    coffee: {
+      name: '喝咖啡聊天', icon: '☕', dur: 60,
+      // follows the café after week 1 (new home, or 小沛's corner of 好日子)
+      get map() { const st = SW.S; return st && st.f.cafeEmptied && st.cafe.outcome !== 'renew' ? SW.Sched.cafeMap() : 'cafe'; },
+      get spots() { return { cafe: ['t6', 'g2'], bar: ['long6', 'long5'], church: ['group1', 'group2'], office: ['tea1', 'tea2'], studio: ['sofa', 'center'] }[this.map]; },
+    },
     walk: { name: '河濱散步', map: 'city', spots: ['park3', 'park4'], icon: '🌇', dur: 60 },
     dinner: { name: '吃晚餐／喝一杯', map: 'bar', spots: ['booth2', 'booth2b'], icon: '🍽️', dur: 90 },
     gym: { name: '一起健身', map: 'gym', spots: ['center', 'yoga2'], icon: '🏋️', dur: 60 },
@@ -3438,6 +3473,7 @@ window.SW = window.SW || {};
     const near = Acts.others(id).filter((o) => SW.CH[o].core || o === 'zhe' || o === 'landlord');
     const items = [
       story ? { icon: '💬', t: story.label || `${ch.name}好像有話想說`, sub: '劇情', v: 'story', hot: true } : null,
+      id === 'pei' && st.f.cafeEmptied && /顧店|幫老蔡/.test(n.act || '') ? { icon: '☕', t: '跟小沛點一杯拿鐵', sub: 'NT$80・+體力', v: 'coffee' } : null,
       { icon: '🗨️', t: '聊天', sub: '聊聊近況', v: 'talk' },
       { icon: '😂', t: '開玩笑', sub: '冷笑話／吐槽／自嘲', v: 'joke' },
       { icon: '😏', t: '調情', sub: '看對方怎麼接', v: 'flirt' },
@@ -3457,6 +3493,10 @@ window.SW = window.SW || {};
     if (!v) return;
     switch (v) {
       case 'story': return SW.Dir.run(story);
+      case 'coffee':
+        if (!Sys.pay(80)) return;
+        Sys.energy(14); st.cafe.fund += 80;
+        return SW.scene(async () => { await say('pei', st.cafe.outcome === 'close' ? U.pick(['老蔡的吧台很好用欸。就是他一直想在拿鐵裡加威士忌。', '同一台咖啡機，同一個我。只是窗外的風景換了。']) : U.pick(['新轉角的第一批常客，你是其中一個。', '這裡的水比較軟，拉花變好看了！……你看，這次真的是貓。'])); });
       case 'talk': return Acts.talk(id);
       case 'joke': return Acts.joke(id);
       case 'flirt': return Acts.flirt(id);
@@ -3637,9 +3677,15 @@ window.SW = window.SW || {};
     if (!byPhone) out.push({ abs: 'now', label: '現在就走', sub: '對方跟你一起移動' });
     else out.push({ abs: now + 30, label: '半小時後', sub: T.rel(now + 30) });
     const cand = [[d, '12:30', '今天中午 12:30'], [d, '18:30', '今天 18:30'], [d, '19:30', '今天晚上 19:30'], [d, '21:00', '今天 21:00'], [d + 1, '12:30', '明天中午 12:30'], [d + 1, '19:30', '明天晚上 19:30'], [d + 2, '19:30', `${T.dayName(d + 2)}晚上 19:30`], [d + 2, '14:00', `${T.dayName(d + 2)}下午 14:00`]];
-    for (const [dd, hm, label] of cand) { const abs = T.at(dd, hm); if (abs > now + 25) out.push({ abs, label, sub: T.dayName(dd) }); }
+    for (const [dd, hm, label] of cand) {
+      const abs = T.at(dd, hm); if (abs <= now + 25) continue;
+      const c = Acts.myClash(abs);
+      out.push({ abs, label, sub: c ? `⚠️ 已經約了：${SW.tx(c.text)}` : T.dayName(dd) });
+    }
     return out;
   };
+  // the player's own commitments near a time (any person, story promises included)
+  Acts.myClash = (abs, except) => S().prom.find((p) => p.status === 'pending' && p.kind === 'meet' && p.who !== except && Math.abs(p.from - abs) < 90);
   Acts.answer = function (id, actId, abs, romantic) {
     const st = S(), r = st.rel[id], n = st.n[id], A = SW.ACTS[actId];
     const when = abs === 'now' ? st.t : abs;
@@ -3647,7 +3693,7 @@ window.SW = window.SW || {};
     if (busy) {
       let alt = null;
       for (let k = 1; k < 10; k++) { const t2 = (abs === 'now' ? st.t : when) + k * 90; const hm = t2 % 1440; if (hm < 9 * 60 || hm > 22 * 60) continue; if (Sched.freeAt(id, t2)) { alt = t2; break; } }
-      return { ok: false, line: SW.Talk.busyLine(id, busy) + (alt ? `\n${T.rel(alt)}以後應該可以？` : '') };
+      return { ok: false, alt, line: SW.Talk.busyLine(id, busy) + (alt ? `\n${T.rel(alt)}以後應該可以？` : '') };
     }
     const clash = st.prom.find((p) => p.status === 'pending' && p.who === id && Math.abs(p.from - when) < 120);
     if (clash) return { ok: false, line: `我們不是已經約了${T.rel(clash.from)}了嗎？` };
@@ -3667,6 +3713,11 @@ window.SW = window.SW || {};
     if (!a) return;
     const slot = await UI.sheet('什麼時候？', SW.ACTS[a].name, Acts.slots(byPhone).map((s) => ({ icon: '🕒', t: s.label, sub: s.sub, v: s.abs })));
     if (slot === null || slot === undefined) return;
+    const mine = slot !== 'now' && Acts.myClash(slot, id);
+    if (mine) {
+      const go = await UI.sheet('時間撞到了', `${T.rel(mine.from)}你已經答應了「${SW.tx(mine.text)}」。兩邊都約，可能有一邊會被放鳥。`, [{ icon: '↩️', t: '換個時間', v: 'back' }, { icon: '🤹', t: '還是約（我兩邊跑得完）', v: 'go' }]);
+      if (go !== 'go') return go === 'back' ? Acts.invite(id, byPhone) : undefined;
+    }
     let romantic = !!SW.CH[id].date;
     if (!romantic && SW.CH[id].core && st.rel[id].attract >= 30) {
       const v = await UI.sheet('這算約會嗎？', '說清楚比較不會誤會。', [{ icon: '🙂', t: '朋友聚聚', v: 'f' }, { icon: '💗', t: '約會', sub: '讓對方知道你是認真的', v: 'r' }]);
@@ -3679,7 +3730,16 @@ window.SW = window.SW || {};
       if (ans.ok) Acts.book(id, a, slot, romantic, true);
       return;
     }
-    await SW.scene(async () => { await say(id, ans.line); });
+    let alt = null;
+    await SW.scene(async () => {
+      await say(id, ans.line);
+      if (!ans.ok && ans.alt && !Acts.myClash(ans.alt, id) && (await choose([{ t: `「那就${T.rel(ans.alt)}！」`, v: 1 }, { t: '「好，那下次吧。」', v: 0 }]))) {
+        const again = Acts.answer(id, a, ans.alt, romantic);
+        await say(id, again.ok ? '好啊，就這麼說定了！' : again.line);
+        if (again.ok) alt = ans.alt;
+      }
+    });
+    if (alt) return Acts.book(id, a, alt, romantic);
     if (!ans.ok) { if (romantic) Sys.ch(id, { comfort: -1 }, true); return; }
     if (slot === 'now') { st.p.follower = id; st.f.pendingJoint = { id, act: a, romantic }; UI.toast(`🚶 ${nm(id)} 跟著你。一起去${SW.PLACES[SW.ACTS[a].map].name}吧！`); if (st.p.map === SW.ACTS[a].map) Acts.joint(id, a, { romantic }); return; }
     Acts.book(id, a, slot, romantic);
@@ -3719,9 +3779,10 @@ window.SW = window.SW || {};
   Acts.J = {
     coffee: async (id) => {
       const price = 160;
-      const v = await choose([{ t: `我請客（${U.money(price)}）`, v: 'treat' }, { t: '各付各的', v: 'split' }, { t: `${nm(id)}說要請你`, v: 'them' }]);
-      if (v === 'treat') { Sys.money(-price); Sys.ch(id, { friend: 1 }, true); await say(id, '那我就不客氣了～下次換我。'); }
-      else if (v === 'split') { Sys.money(-price / 2); }
+      const m = S().p.money;
+      const v = await choose([{ t: `我請客（${U.money(price)}）`, v: 'treat', dis: m < price }, { t: '各付各的', v: 'split', dis: m < price / 2 }, { t: `${nm(id)}說要請你`, v: 'them' }]);
+      if (v === 'treat' && Sys.pay(price)) { Sys.ch(id, { friend: 1 }, true); await say(id, '那我就不客氣了～下次換我。'); }
+      else if (v === 'split') { Sys.pay(price / 2); }
       else { await say(id, SW.S.rel[id].comfort > 60 ? '好啦好啦，今天我請。' : '……我什麼時候說的？好啦，這次就請你。'); }
       Sys.energy(12);
       return 60;
@@ -3760,7 +3821,7 @@ window.SW = window.SW || {};
     },
     dinner: async (id, opt) => {
       const v = await choose([{ t: '你決定菜單', v: 'me' }, { t: `讓${nm(id)}點`, v: 'them' }, { t: '一起看菜單討論', v: 'both' }]);
-      const pr = 520; Sys.money(-pr);
+      const pr = 520; if (!Sys.pay(pr)) await say(id, '欸，你的卡刷不過？沒關係，這頓我先付，下次換你請。');
       if (v === 'me') await say(id, SW.S.rel[id].comfort > 55 ? '你點的都是我愛吃的欸。你是不是偷偷觀察我？' : '嗯……也可以啦。');
       else if (v === 'them') await say(id, '那我要點炸物拼盤、鹹酥雞沙拉，還有……兩杯好日子特調！');
       else { await say(id, '欸這個看起來好怪，我們點來挑戰看看？'); Sys.ch(id, { comfort: 3 }, true); }
@@ -3788,11 +3849,13 @@ window.SW = window.SW || {};
     },
     market: async (id, opt) => {
       await narr('東門夜市的燈一盞一盞亮起來。人潮擠得像週五的公司電梯。');
-      const a = await choose([{ t: '先吃雞排', v: 'chicken' }, { t: '先去射氣球', v: 'game' }, { t: '先買兩杯珍奶', v: 'boba' }]);
-      Sys.money(a === 'game' ? -100 : a === 'boba' ? -110 : -160);
+      const m = S().p.money;
+      const a = await choose([{ t: '先吃雞排', sub: 'NT$160', v: 'chicken', dis: m < 160 }, { t: '先去射氣球', sub: 'NT$100', v: 'game', dis: m < 100 }, { t: '先買兩杯珍奶', sub: 'NT$110', v: 'boba', dis: m < 110 }, { t: '先隨便逛逛，看就好', v: 'look' }]);
+      if (a !== 'look') Sys.pay(a === 'game' ? 100 : a === 'boba' ? 110 : 160);
       if (a === 'game') { const r = await SW.MG.timing({ title: '射氣球', rounds: 4, verb: '砰！', labels: ['紅色', '藍色', '晃動的', '最後一發'], zone: 0.15 }); await say(id, r.score >= 75 ? (opt.romantic ? '大獎……你要送給我嗎？' : '你是不是偷練過！') : '哈哈哈哈老闆給你安慰獎耶！'); if (r.score >= 75) Sys.ch(id, { attract: opt.romantic ? 3 : 0, comfort: 2 }, true); }
       else if (a === 'chicken') await say(id, '雞排要趁熱！不要拍照了，快吃！');
-      else await say(id, '乾杯！珍奶乾杯是台灣的國家儀式。');
+      else if (a === 'boba') await say(id, '乾杯！珍奶乾杯是台灣的國家儀式。');
+      else await say(id, '只看不吃也很好玩啦。你看那個賣棉花糖的阿伯，他的棉花糖比他的頭還大。');
       const ev = U.pick(['crowd', 'rain', 'friend']);
       if (ev === 'crowd') { await narr('人潮突然湧上來，你們差點被沖散。'); const c = await choose([{ t: '伸手拉住對方', v: 1 }, { t: '「在雞蛋糕攤集合！」', v: 0 }]); if (c) { await say(id, opt.romantic ? '……你的手很暖。' : '好險，差點變成夜市失蹤人口。'); Sys.ch(id, { comfort: 3, attract: opt.romantic ? 3 : 0 }, true); } else await say(id, '好，雞蛋糕攤！……你在哪？我只看到一百個雞蛋糕攤！'); }
       else if (ev === 'rain') { await narr('突然下起雨。整條夜市的人同時躲進攤位的帆布底下。'); await say(id, '我們跟臭豆腐老闆一起躲雨耶。這是什麼浪漫。'); }
@@ -3802,7 +3865,7 @@ window.SW = window.SW || {};
     },
     cook: async (id) => {
       const st = S();
-      if (!Sys.has('groceries')) { await narr('冰箱空空的。你們臨時叫了外送。'); Sys.money(-300); return 40; }
+      if (!Sys.has('groceries')) { if (Sys.pay(300)) await narr('冰箱空空的。你們臨時叫了外送。'); else await narr('冰箱空空的，錢包也是。你們分著吃了最後兩包泡麵，加了一顆蛋。'); return 40; }
       Sys.item('groceries', -1);
       const dish = await choose([{ t: '番茄炒蛋＋三杯雞（家常）', v: 'home' }, { t: '韓式部隊鍋（大份量）', v: 'pot' }, { t: '挑戰：舒芙蕾鬆餅', v: 'risky' }]);
       const res = await SW.MG.timing({ title: '一起做晚餐', rounds: 3, verb: '下鍋！', labels: ['切菜', '火候', '調味'], zone: (dish === 'risky' ? 0.11 : 0.16) + st.p.skill.cook * 0.012 });
@@ -4062,7 +4125,7 @@ window.SW = window.SW || {};
     if (v !== 'city' && !Sys.canEnter(v)) return;
     const mins = st.p.map === 'city' || v === 'city' ? 8 : 12;
     if (!(await Sys.confirmTime(mins, '移動'))) return;
-    if (st.p.map === 'city' && !fromPhone) Sys.money(-10);
+    if (st.p.map === 'city' && !fromPhone && !Sys.pay(10)) return;
     await Sys.advance(mins, `🚲 ${fromPhone ? '移動中' : '騎 YouBike'}……`);
     SW.W.travelTo(v);
   };
@@ -4399,12 +4462,12 @@ window.SW = window.SW || {};
     const st = S(), pei = here('pei');
     return [
       { icon: '☕', t: '點一杯拿鐵', sub: 'NT$80・+體力', v: 'order', run: async () => {
-        Sys.money(-80); Sys.energy(14); st.cafe.fund += 80;
+        if (!Sys.pay(80)) return; Sys.energy(14); st.cafe.fund += 80;
         if (pei) await SW.scene(async () => { await say('pei', U.pick(['老樣子？燕麥奶、少冰、多一點耐心。', '今天的豆子是衣索比亞，聞起來像草莓。', '給你～拉花是一隻貓，雖然看起來比較像馬鈴薯。'])); });
         else UI.toast('☕ 店員幫你做了一杯拿鐵。');
       } },
       Sys.knows('player', 'lease') && pei ? { icon: '🎟️', t: '預購咖啡券', sub: '用她能接受的方式支持咖啡廳', v: 'voucher', run: voucher } : null,
-      { icon: '🥐', t: '買個可頌', sub: 'NT$65・+體力', v: 'croissant', run: async () => { Sys.money(-65); Sys.energy(10); st.cafe.fund += 65; UI.toast('🥐 酥到掉滿桌。'); } },
+      { icon: '🥐', t: '買個可頌', sub: 'NT$65・+體力', v: 'croissant', run: async () => { if (!Sys.pay(65)) return; Sys.energy(10); st.cafe.fund += 65; UI.toast('🥐 酥到掉滿桌。'); } },
     ];
   };
   async function voucher() {
@@ -4500,18 +4563,18 @@ window.SW = window.SW || {};
   OBJ.weights = () => [{ icon: '🏋️', t: '重訓', sub: '45 分鐘・時機小遊戲', v: 'lift', run: () => workout('lift') }];
   OBJ.yoga = () => [{ icon: '🧘', t: '伸展放鬆', sub: '30 分鐘・+心情 +一點體力', v: 'y', run: () => timed(30, '伸展', async () => { if (here('mira')) { await say('mira', '……你也來做瑜珈？不要跟別人說我在這裡。'); Sys.ch('mira', { comfort: 3 }, true); } else await narr('你的筋骨發出各種聲音。你決定原諒它們。'); }).then((ok) => { if (ok) { Sys.mood(6); Sys.energy(5); } }) }];
   OBJ.gymCounter = () => [
-    { icon: '🥤', t: '買高蛋白飲', sub: 'NT$90・+體力', v: 'shake', run: () => { Sys.money(-90); Sys.energy(15); UI.toast('🥤 巧克力口味，喝起來像融化的雪糕。'); } },
+    { icon: '🥤', t: '買高蛋白飲', sub: 'NT$90・+體力', v: 'shake', run: () => { if (!Sys.pay(90)) return; Sys.energy(15); UI.toast('🥤 巧克力口味，喝起來像融化的雪糕。'); } },
     here('coach') ? { icon: '🐻', t: '跟大熊教練聊天', v: 'coach', run: () => SW.Acts.minor('coach') } : null,
   ];
 
   // ===== BAR =====
   OBJ.barCounter = () => [
-    { icon: '🍸', t: '點一杯好日子特調', sub: 'NT$250・+心情', v: 'drink', run: async () => { Sys.money(-250); Sys.mood(10); Sys.energy(-4); if (here('tsai')) await SW.scene(async () => { await say('tsai', U.pick(['特調一杯。今天看起來需要雙倍的「好日子」。', '慢慢喝。這杯的名字叫「明天再說」。', '你的臉寫著「上班好累」，我幫你多加了一點檸檬。'])); }); else UI.toast('🍸 微酸、微甜、很好日子。'); } },
+    { icon: '🍸', t: '點一杯好日子特調', sub: 'NT$250・+心情', v: 'drink', run: async () => { if (!Sys.pay(250)) return; Sys.mood(10); Sys.energy(-4); if (here('tsai')) await SW.scene(async () => { await say('tsai', U.pick(['特調一杯。今天看起來需要雙倍的「好日子」。', '慢慢喝。這杯的名字叫「明天再說」。', '你的臉寫著「上班好累」，我幫你多加了一點檸檬。'])); }); else UI.toast('🍸 微酸、微甜、很好日子。'); } },
     here('tsai') ? { icon: '🧔', t: '跟老蔡聊天', sub: '他看過太多人的故事', v: 'tsai', run: () => SW.Acts.minor('tsai') } : null,
   ];
   OBJ.jukebox = () => [{ icon: '🎵', t: '點一首歌', sub: 'NT$20', v: 'song', run: async () => {
     const v = await UI.sheet('點什麼歌？', '', [{ icon: '🎤', t: '台語老歌', v: 'old' }, { icon: '🎸', t: '樂團搖滾', v: 'rock' }, { icon: '🕯️', t: '慢歌情歌', v: 'slow' }]);
-    if (!v) return; Sys.money(-20); Sys.mood(4);
+    if (!v || !Sys.pay(20)) return; Sys.mood(4);
     const ps = SW.W.npcsHere().filter((i) => SW.CH[i].core);
     await SW.scene(async () => {
       if (!ps.length) { await narr({ old: '老蔡跟著哼了起來。整間店突然像辦桌。', rock: '鼓聲一下，隔壁桌的上班族默默點頭。', slow: '燈好像暗了一點。' }[v]); return; }
@@ -4563,7 +4626,7 @@ window.SW = window.SW || {};
   const OBJ = SW.OBJ, SUB = SW.OBJ_SUB;
   const fol = () => S().p.follower;
   const marketOpen = () => T.mod() >= 17 * 60 || T.mod() < 30;
-  const buy = (price) => { if (S().p.money < price) { UI.toast('錢不夠。'); return false; } Sys.money(-price); return true; };
+  const buy = (price) => Sys.pay(price);
   async function folLine(lines) { const f = fol(); if (f && lines[f]) { await say(f, lines[f]); Sys.ch(f, { comfort: 2 }, true); } }
 
   OBJ.breakfast = () => {
@@ -4589,7 +4652,7 @@ window.SW = window.SW || {};
     } }];
   };
   OBJ.fountain = () => [{ icon: '🪙', t: '丟一枚硬幣許願', sub: 'NT$10', v: 'w', dis: SW.dailyHas('wish'), run: async () => {
-    SW.dailyOnce('wish'); Sys.money(-10);
+    if (!Sys.pay(10)) return; SW.dailyOnce('wish');
     await SW.scene(async () => {
       const c = await choose([{ t: '希望這週可以準時下班', v: 'work' }, { t: '希望轉角可以留下來', v: 'cafe' }, { t: '希望遇到喜歡的人', v: 'love' }, { t: '希望大家都好好的', v: 'all' }]);
       await narr('硬幣在水面上轉了一圈，沉下去了。');
@@ -5375,7 +5438,11 @@ window.SW = window.SW || {};
   };
 
   // ---------- invites ----------
-  Talk.busyLine = (id, act) => ({ mira: `我在${act}，晚點再說好嗎？`, hsiu: `我那時候要${act}。很忙。`, pei: `啊，我那時候在${act}耶～`, anson: `抱歉，我那時候在${act}。`, lele: `我那時候在${act}啦～`, kai: '那個時間我有拍攝工作。', yuna: '那時候我在值班。' }[id] || `我那時候在${act}。`);
+  Talk.busyLine = (id, act) => {
+    if (id === 'pei' && /壽星/.test(act)) act = '跟米拉吃晚餐'; // she must not hear about her own surprise party
+    act = String(act).replace(/^在/, '');
+    return ({ mira: `我在${act}，晚點再說好嗎？`, hsiu: `我那時候要${act}。很忙。`, pei: `啊，我那時候在${act}耶～`, anson: `抱歉，我那時候在${act}。`, lele: `我那時候在${act}啦～`, kai: '那個時間我有拍攝工作。', yuna: '那時候我在值班。' }[id] || `我那時候在${act}。`);
+  };
   Talk.inviteYes = function (id, act, rom) {
     const Y = {
       mira: ['好啊。準時喔，我會看錶。', '……約會？好。（停頓）我會準時。你也是。'],
@@ -5931,7 +5998,7 @@ window.SW = window.SW || {};
     msg('lele', 'lele', '我覺得阿修最近怪怪的，你知道什麼嗎？', 'd1_lele', at(1, '23:30'));
     Sys.learn('player', 'party', 'mira', true);
     st.f.trust_party = true;
-    UI.toast('📱 點右上角手機（或按 P）回訊息。走到下方出口出門。');
+    UI.toast(SW.R3 && SW.R3.mobile ? '📱 點右上角手機回訊息。走到發亮的門口出門。' : '📱 按 P（或點右上角手機）回訊息。走到發亮的門口出門。');
   } });
   R.d1_boss = [
     { t: '「沒問題！五點前搞定。」', fn: (st) => { st.f.bossPromise = 'yes'; Sys.promise({ id: 'bug4521', who: 'boss', text: '修好 Bug #4521', map: 'office', from: st.t, until: at(1, '17:00'), kind: 'task', onBreak: 'bossBroken', onKeep: 'bossKept', breakText: '答應五點前修好 4521，沒做到', noWarn: false }); later(2, 'boss', 'boss', '好。我跟客戶說了。'); } },
@@ -6611,6 +6678,7 @@ window.SW = window.SW || {};
   add({ id: 'd5_gig_off', kind: 'offscreen', day: 5, from: '22:30', cond: (st) => !st.f.gigDone, run: (st) => { gigScene(st, false); } });
   async function gigScene(st, present) {
     st.f.gigDone = present ? 'present' : 'absent';
+    if (present) Sys.keep('gig', true); // showing up is what was promised, whatever you do once there
     const big = !!st.f.gigPlanned;
     let raised = 0, playerScore = 0;
     const L = present ? async (w, t, e) => (w === 'narr' ? narr(t) : say(w, t, e)) : async () => {};
@@ -6635,10 +6703,9 @@ window.SW = window.SW || {};
         await narr(r.score > 75 ? '最後一個和弦落下，整間店安靜了一秒，然後爆出掌聲。' : '你錯了幾個音，但小沛笑著對你點頭，台下也跟著打拍子。');
         Sys.ch('pei', { friend: 5, attract: r.score > 75 ? 3 : 1, trust: 3 }); st.stats.gigs++;
         Sys.mem('pei', '你在轉角的 Live 上台和小沛一起表演', 1, 'gigPlay');
-        if (Sys.pending('gig')) { Sys.prom('gig').status = 'kept'; st.stats.kept++; }
       } else if (c === 'film') { raised += big ? 3000 : 0; st.cafe.promo += 1; await narr('你拍的影片後來被分享了好幾百次。'); }
       else Sys.ch('pei', { comfort: 2 }, true);
-    } else if (present && Sys.pending('gig')) { Sys.prom('gig').status = 'kept'; st.stats.kept++; }
+    }
     // 阿修's song
     const hsiuHere = st.n.hsiu.map === 'cafe' || (!st.f.hsiuStuck && st.f.releaseOwner !== 'hsiu') || st.f.hsiuFree;
     const miraHere = !(st.f.releaseOwner === 'player' && false);
@@ -6966,7 +7033,9 @@ window.SW = window.SW || {};
     const W = st.work;
     world.push(W.legend >= 10 ? '😈 你成了韌體部門的傳奇人物（不全是好事）。' : W.perf >= 8 ? '💻 你這週的工作表現很亮眼。Feature Owner 明天揭曉。' : '💻 Feature Owner 明天揭曉。');
     const ppl = SW.CORE.map((id) => {
-      const mems = Sys.memsOf(id).filter((m) => m.tone !== 0).slice(-3);
+      const all = Sys.memsOf(id).filter((m) => m.tone !== 0);
+      const own = all.filter((m) => m.who.length === 1); // one-on-one moments say more than group ones
+      const mems = own.slice(-4).concat(all.filter((m) => m.who.length > 1).slice(-Math.max(0, 4 - own.length))).sort((x, y) => x.t - y.t);
       const tags = Sys.tiers(id).map(([t, c]) => `<span class="tag ${c}">${t}</span>`).join('');
       return `<div class="card-sec"><h4>你和${nm(id)}</h4><div>${tags}</div>${mems.length ? `<ul>${mems.map((m) => `<li>${m.tone > 0 ? '💚' : '💢'} ${U.esc(m.text)}</li>`).join('')}</ul>` : '<p class="muted">這週你們幾乎沒有交集。</p>'}</div>`;
     }).join('');
@@ -6995,6 +7064,17 @@ window.SW = window.SW || {};
   // =====================================================================
   // WEEK 2+ — the world keeps going
   // =====================================================================
+  // the outcome becomes physical: the café empties out and everyone's hangout moves with it
+  add({ id: 'd8_cafe_move', kind: 'offscreen', from: '07:00', cond: (st) => T.day() >= 8 && !st.f.cafeEmptied && (st.cafe.outcome === 'close' || st.cafe.outcome === 'relocate'), run: (st) => {
+    st.f.cafeEmptied = true;
+    if (st.cafe.outcome === 'close') {
+      msg('group', 'pei', '轉角的東西我這週慢慢搬。咖啡機先寄放在好日子，老蔡說吧台借我一角。之後想喝咖啡，來好日子找我☕');
+    } else {
+      const where = SW.PLACES[SW.Sched.cafeMap()].name;
+      msg('group', 'pei', `搬家完成！！新轉角在「${where}」，今天開始營業～位子比較少，但窗戶很大🪟 大家的老位子我都留著。`);
+    }
+    if (st.f.leleStay === 'cafe') st.f.leleStay = 'own';
+  } });
   add({ id: 'd8_feature', kind: 'approach', npc: 'boss', day: [8, 9, 10], where: 'office', prio: 60, run: async (st) => {
     const W = st.work;
     const me2 = W.perf * 3 + W.bossTrust * 0.6 + W.bugsDone.length * 3 + (st.f.releaseDone === 'player' ? 12 : 0) + (st.f.releaseOwner === 'auto' ? 10 : 0) - W.warn * 8 - Math.max(0, W.legend - 8);
@@ -7130,7 +7210,12 @@ window.SW = window.SW || {};
     Sys.mem(who, `你好幾天沒出門，${nm(who)}帶著吃的來看你`, 1, 'careVisit');
     SW.Sched.clearOv('care');
   } });
-  add({ id: 'payday', kind: 'phone', day: 5, from: '10:00', run: (st) => { Sys.money(38000); msg('boss', 'boss', '【人資通知】本月薪資已入帳，辛苦了。'); UI.toast('💰 薪水入帳 NT$38,000'); } });
+  add({ id: 'payday', kind: 'phone', day: 5, from: '10:00', run: (st) => {
+    const missed = [1, 2, 3, 4].filter((d) => !st.f['v_office_' + d]).length, pay = 38000 - missed * 1800;
+    Sys.money(pay);
+    msg('boss', 'boss', missed ? `【人資通知】本月薪資已入帳。本週曠職 ${missed} 天，依規定扣薪 ${U.money(missed * 1800)}。` : '【人資通知】本月薪資已入帳，辛苦了。');
+    UI.toast(`💰 薪水入帳 ${U.money(pay)}`);
+  } });
   // a gentle nudge when the player has done nothing all day
   add({ id: 'lazy_check', kind: 'phone', once: false, cooldown: 1400, from: '16:00', to: '17:00', cond: (st) => st.p.map === 'home' && !st.f['v_office_' + T.day()] && !T.weekend() && T.day() <= 7, run: () => {
     const w = U.pick(['lele', 'pei', 'mira']);
@@ -7409,12 +7494,13 @@ window.SW = window.SW || {};
     main(html, '設定', () => Phone.go('more'));
     $('st-save').onclick = () => { SW.save(true); UI.toast('💾 已存檔'); };
     $('st-fast').onclick = () => { SW.fastText = !SW.fastText; try { localStorage.setItem('sw-fast', SW.fastText ? '1' : '0'); } catch (e) { /* ignore */ } Phone.refresh(); };
-    $('phone-main').querySelectorAll('[data-sp]').forEach((b) => { b.onclick = () => { SW.timeScale = +b.dataset.sp; Phone.refresh(); }; });
+    $('phone-main').querySelectorAll('[data-sp]').forEach((b) => { b.onclick = () => { SW.timeScale = +b.dataset.sp; try { localStorage.setItem('sw-speed', b.dataset.sp); } catch (e) { /* not persisted */ } Phone.refresh(); }; });
     $('st-reset').onclick = () => { $('st-confirm').innerHTML = '<p>確定嗎？這週發生的一切都會消失。</p><button class="btn warn" id="st-yes" style="width:100%">確定刪除</button>'; $('st-yes').onclick = () => { SW.clearSave(); location.reload(); }; };
   };
   Phone.views.help = function () {
-    const html = `<div class="card-sec"><h4>移動</h4><p>電腦：WASD／方向鍵。手機：按住畫面拖曳出現搖桿；或直接點地面走過去。</p></div>
-      <div class="card-sec"><h4>互動</h4><p>靠近人或物品，按 <b>E</b> 或右下角的大按鈕。也可以直接點人物。</p></div>
+    const html = `<div class="card-sec"><h4>移動</h4><p>電腦：<b>WASD</b> 走路，滑鼠轉頭（點一下畫面鎖定滑鼠，Esc 放開；也可以按住拖曳），<b>←→</b> 轉身，<b>M</b> 地圖。<br>手機：左半邊拖曳＝搖桿，右半邊拖曳＝轉頭；點地面直接走過去。</p></div>
+      <div class="card-sec"><h4>互動</h4><p>看向人或物品（畫面中央的準心），按 <b>E</b> 或右下角的大按鈕。手機也可以直接點人物或物品，會自動走過去。</p></div>
+      <div class="card-sec"><h4>去哪裡</h4><p>畫面上方的箭頭提示會指出現在最重要的地方和距離。右上角小地圖點一下可以開大地圖；城市裡的 YouBike 可以快速移動。</p></div>
       <div class="card-sec"><h4>手機</h4><p>右上角 📱 或按 <b>P</b>。訊息、邀約、人物關係、回憶、行程都在這裡。</p></div>
       <div class="card-sec"><h4>時間</h4><p>時間會一直走。做事情會花時間，NPC 不會等你。重要的約會會出現在左上角的提醒。答應了做不到，傳個訊息改期，總比放鳥好。</p></div>
       <div class="card-sec"><h4>沒有正確答案</h4><p>認真上班、天天摸魚、談戀愛、什麼都不做——每一種生活都有自己的故事。這個世界會記得你怎麼活。</p></div>`;
@@ -7454,7 +7540,7 @@ window.SW = window.SW || {};
       }
       if (!$('sheet').hidden) {
         if (k === 'Escape') UI.closeSheet(true);
-        const n = parseInt(k, 10); if (n >= 1 && n <= 9) { const b = $('sheet-items').querySelectorAll('.sitem:not([disabled])')[n - 1]; if (b) b.click(); }
+        const n = parseInt(k, 10); if (n >= 1 && n <= 9) { const b = $('sheet-items').querySelectorAll('.sitem')[n - 1]; if (b && !b.disabled) b.click(); }
         return;
       }
       if (!$('phone').hidden) { if (k === 'Escape' || k === 'p' || k === 'P') SW.Phone.close(); return; }
@@ -7515,7 +7601,8 @@ window.SW = window.SW || {};
     $('phone-close').addEventListener('click', () => SW.Phone.close());
     $('phone-back').addEventListener('click', () => { if (SW.Phone.back) SW.Phone.back(); });
     $('sheet-close').addEventListener('click', () => UI.closeSheet(true));
-    $('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') UI.closeSheet(true); });
+    // the second tap of a double-tap on the act button lands on the backdrop of the sheet it just opened: ignore it
+    $('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet' && performance.now() - (UI.sheetOpened || 0) > 400) UI.closeSheet(true); });
     $('phone').addEventListener('click', (e) => { if (e.target.id === 'phone') SW.Phone.close(); });
     $('objective').addEventListener('click', () => UI.toggleObjective());
   };
@@ -7563,6 +7650,7 @@ window.SW = window.SW || {};
   const $ = (id) => document.getElementById(id);
   const Main = SW.Main = {};
   SW.timeScale = 0.85;
+  try { const ts = +localStorage.getItem('sw-speed'); if ([0.55, 0.85, 1.4].includes(ts)) SW.timeScale = ts; } catch (e) { /* storage blocked: keep the default */ }
   try { SW.fastText = localStorage.getItem('sw-fast') === '1'; } catch (e) { SW.fastText = false; }
 
   const HAIR = ['#1d1c24', '#4a2f22', '#7a3b22', '#c9a063', '#c94f86', '#3f5f8f', '#e8e3d8'];
@@ -7603,7 +7691,7 @@ window.SW = window.SW || {};
         <button class="btn ${save ? 'alt' : 'primary'}" id="t-new">${save ? '開始新的人生（會覆蓋存檔）' : '開始新的人生'}</button>
         ${save ? '' : '<button class="btn alt" id="t-quick">用預設角色直接開始（Shannon・獨居）</button>'}
       </div>
-      <p class="t-note">支援電腦與手機瀏覽器。電腦用 WASD／方向鍵移動、E 互動、P 打開手機；手機拖曳畫面移動、點擊互動。遊戲會自動存在這個瀏覽器裡。<br>所有公司、人物與事件皆為虛構。</p>
+      <p class="t-note">支援電腦與手機瀏覽器。電腦：WASD 移動、滑鼠轉頭、E 互動、P 手機。手機：左半邊拖曳移動、右半邊拖曳轉頭、點人或東西互動。遊戲會自動存在這個瀏覽器裡。<br>所有公司、人物與事件皆為虛構。</p>
     </div>`;
     if (save) $('t-cont').onclick = () => Main.start(save);
     $('t-new').onclick = () => Main.create();
@@ -7624,7 +7712,7 @@ window.SW = window.SW || {};
         <div><label class="lab">背景</label><p class="muted" style="margin:0 0 6px">25 歲，SSD 韌體工程師，進公司一年。你比較像……</p><div class="opt-cards" id="f-bg">${bgs.map(([k, b]) => `<button data-v="${k}" class="${k === opt.bg ? 'on' : ''}"><b>${b.name}</b><span>${b.desc}</span></button>`).join('')}</div></div>
         <div><label class="lab">住哪裡？</label><div class="opt-cards" id="f-house">
           <button data-v="solo" class="on"><b>獨居套房</b><span>私人空間多。安靜，有時候太安靜。</span></button>
-          <button data-v="shared"><b>和米拉合租</b><span>每天都有室友事件。冰箱會分區，會吵架，也會一起看劇。</span></button>
+          <button data-v="shared"><b>和米拉合租</b><span>常常有室友事件。冰箱會分區，會吵架，也會一起看劇。</span></button>
         </div></div>
         <button class="btn" id="f-go" style="font-size:17px;min-height:54px;text-align:center">星期一 08:45，起床</button>
         <button class="ghost" id="f-back">返回</button>
@@ -7711,6 +7799,9 @@ window.SW = window.SW || {};
     where: () => Object.fromEntries(Object.keys(SW.S.n).map((id) => [id, `${SW.S.n[id].map} ${SW.S.n[id].act}`])),
   };
 
+  // web font loads after the page so an unreachable font host never blocks the first paint (system fonts until then)
+  function loadFont() { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap'; document.head.appendChild(l); }
+  if (document.readyState === 'complete') loadFont(); else window.addEventListener('load', loadFont);
   window.addEventListener('resize', () => { SW.R3.resize(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) SW.save(); });
   window.addEventListener('pagehide', () => SW.save());

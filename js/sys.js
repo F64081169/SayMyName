@@ -182,7 +182,9 @@
   // ---------- player stats ----------
   Sys.energy = (d) => { const p = S().p; p.energy = U.clamp(p.energy + d, 0, 100); };
   Sys.mood = (d) => { const p = S().p; p.mood = U.clamp(p.mood + d, 0, 100); };
-  Sys.money = (d) => { S().p.money = Math.round(S().p.money + d); };
+  Sys.money = (d) => { S().p.money = Math.max(0, Math.round(S().p.money + d)); };
+  // a purchase the player chose: refuses (and says so) instead of going into debt
+  Sys.pay = (price) => { const m = S().p.money; if (m < price) { UI.toast(`💸 錢不夠（還差 ${U.money(price - m)}）`, 'warn'); return false; } Sys.money(-price); return true; };
   Sys.item = (id, d) => { const inv = S().p.inv; inv[id] = (inv[id] || 0) + (d === undefined ? 1 : d); if (inv[id] <= 0) delete inv[id]; };
   Sys.has = (id) => (S().p.inv[id] || 0) > 0;
   Sys.skill = (k, d) => { const s = S().p.skill; s[k] = U.clamp((s[k] || 0) + d, 0, 10); if (d >= 0.5) UI.toast(`📈 ${{ debug: 'Debug', guitar: '吉他', fitness: '體能', cook: '廚藝' }[k]}技巧提升了`, ''); };
@@ -306,7 +308,24 @@
 
   // ---------- schedule ----------
   const Sched = SW.Sched = {};
-  const BUSY = /跑測試|寫測試報告|寫 code|學校|上班|顧店|帶小組|布置|服事|準備|演出|樂團練習|加班|派對|和阿哲|偷偷練歌|主管辦公室|release|談租約|帶學員|顧吧台|整理店務|講道|休息中/;
+  const BUSY = /跑測試|寫測試報告|寫 code|學校|上班|顧店|帶小組|布置|服事|準備|演出|樂團練習|加班|派對|和阿哲|偷偷練歌|主管辦公室|release|談租約|帶學員|顧吧台|整理店務|講道|休息中|聚會|幫老蔡/;
+  // after day 7 the café's crowd follows the café: to its new home, or to 好日子 if it closed
+  const CAFE_MOVE = {
+    bar: { counter: 'stool1', stage: 'booth1', t1: 'long1', t2: 'long2', t3: 'long3', t4: 'long4', t5: 'long5', t6: 'long6', g1: 'long5', g2: 'long6' },
+    church: { counter: 'kitchen', stage: 'pulpit2', t1: 'group1', t2: 'group2', t3: 'group3', t4: 'kitchen2', t5: 'pew3', t6: 'pew4', g1: 'pew1', g2: 'pew2' },
+    office: { counter: 'lobby', stage: 'lobby', t1: 'tea1', t2: 'tea2', t3: 'meet1', t4: 'meet2', t5: 'tea1', t6: 'tea2', g1: 'meet1', g2: 'meet2' },
+    studio: { counter: 'center', stage: 'mic', t1: 'sofa', t2: 'drums', t3: 'guitar', t4: 'booth', t5: 'sofa', t6: 'center', g1: 'guitar', g2: 'drums' },
+  };
+  Sched.cafeMap = () => { const c = S().cafe; return c.outcome === 'close' ? 'bar' : ({ church: 'church', company: 'office', studio: 'studio' }[c.partner] || 'church'); };
+  function movedCafe(id, r) {
+    if (r.map !== 'cafe' || !S().f.cafeEmptied || S().cafe.outcome === 'renew') return r;
+    const map = Sched.cafeMap(), spot = CAFE_MOVE[map][r.spot];
+    if (!spot) return { map: 'away', spot: null, act: r.act, busy: r.busy };
+    let act = r.act;
+    if (id === 'pei' && /顧店|整理店務/.test(act)) act = map === 'bar' ? '在好日子幫老蔡' : '新轉角・顧店';
+    else if (act === '在咖啡廳') act = map === 'bar' ? '在好日子' : '在新轉角';
+    return Object.assign({}, r, { map, spot, act });
+  }
   Sched.homeOf = function (id) {
     const st = S(), m = T.mod();
     if (st.p.roommate === id) return { map: 'home', spot: 'roomMate' };
@@ -316,7 +335,8 @@
     }
     return { map: 'away', spot: null };
   };
-  Sched.base = function (id, abs) {
+  Sched.base = (id, abs) => movedCafe(id, baseSched(id, abs));
+  function baseSched(id, abs) {
     const st = S(); const t = abs == null ? st.t : abs;
     const d = Math.floor(t / 1440) + 1, dow = (d - 1) % 7, m = t % 1440;
     // overrides (latest wins)
@@ -339,7 +359,7 @@
       return { map: b.map, spot: b.spot, act: b.act, busy: BUSY.test(b.act) };
     }
     return { map: 'away', spot: null, act: '' };
-  };
+  }
   Sched.goal = function (id) {
     const st = S(), n = st.n[id];
     if (st.p.follower === id) return { map: st.p.map, follow: true, act: '跟你一起' };
@@ -405,7 +425,7 @@
     }));
     if (!v) return;
     const it = SW.ITEMS[v];
-    Sys.money(-it.price); Sys.item(v, 1);
+    if (!Sys.pay(it.price)) return; Sys.item(v, 1);
     UI.toast(`🛍️ 買了 ${it.icon} ${it.name}`);
     return Sys.shop();
   };
@@ -424,7 +444,8 @@
     if (map === 'church' && (m >= 22 * 60 || m < 7 * 60)) { UI.toast('教會的門鎖上了。'); return false; }
     if (map === 'gym' && (m >= 23 * 60 || m < 6 * 60)) { UI.toast('健身房打烊了。'); return false; }
     if (map === 'studio' && (m >= 24 * 60 || m < 10 * 60)) { UI.toast('工作室還沒開。'); return false; }
-    if (map === 'cafe' && S().cafe.outcome === 'close' && S().f.cafeEmptied) { UI.toast('轉角咖啡廳的鐵門拉下來了。上面貼著一張手寫的「謝謝大家」。'); return false; }
+    if (map === 'cafe' && S().cafe.outcome === 'close' && S().f.cafeEmptied) { UI.toast('轉角咖啡廳的鐵門拉下來了。上面貼著一張手寫的「謝謝大家」。小沛現在在好日子。'); return false; }
+    if (map === 'cafe' && S().cafe.outcome === 'relocate' && S().f.cafeEmptied) { UI.toast(`轉角搬家了。門上貼著新地址：${SW.PLACES[Sched.cafeMap()].name}。`); return false; }
     return true;
   };
 })(window.SW);

@@ -268,12 +268,13 @@
     main(html, '設定', () => Phone.go('more'));
     $('st-save').onclick = () => { SW.save(true); UI.toast('💾 已存檔'); };
     $('st-fast').onclick = () => { SW.fastText = !SW.fastText; try { localStorage.setItem('sw-fast', SW.fastText ? '1' : '0'); } catch (e) { /* ignore */ } Phone.refresh(); };
-    $('phone-main').querySelectorAll('[data-sp]').forEach((b) => { b.onclick = () => { SW.timeScale = +b.dataset.sp; Phone.refresh(); }; });
+    $('phone-main').querySelectorAll('[data-sp]').forEach((b) => { b.onclick = () => { SW.timeScale = +b.dataset.sp; try { localStorage.setItem('sw-speed', b.dataset.sp); } catch (e) { /* not persisted */ } Phone.refresh(); }; });
     $('st-reset').onclick = () => { $('st-confirm').innerHTML = '<p>確定嗎？這週發生的一切都會消失。</p><button class="btn warn" id="st-yes" style="width:100%">確定刪除</button>'; $('st-yes').onclick = () => { SW.clearSave(); location.reload(); }; };
   };
   Phone.views.help = function () {
-    const html = `<div class="card-sec"><h4>移動</h4><p>電腦：WASD／方向鍵。手機：按住畫面拖曳出現搖桿；或直接點地面走過去。</p></div>
-      <div class="card-sec"><h4>互動</h4><p>靠近人或物品，按 <b>E</b> 或右下角的大按鈕。也可以直接點人物。</p></div>
+    const html = `<div class="card-sec"><h4>移動</h4><p>電腦：<b>WASD</b> 走路，滑鼠轉頭（點一下畫面鎖定滑鼠，Esc 放開；也可以按住拖曳），<b>←→</b> 轉身，<b>M</b> 地圖。<br>手機：左半邊拖曳＝搖桿，右半邊拖曳＝轉頭；點地面直接走過去。</p></div>
+      <div class="card-sec"><h4>互動</h4><p>看向人或物品（畫面中央的準心），按 <b>E</b> 或右下角的大按鈕。手機也可以直接點人物或物品，會自動走過去。</p></div>
+      <div class="card-sec"><h4>去哪裡</h4><p>畫面上方的箭頭提示會指出現在最重要的地方和距離。右上角小地圖點一下可以開大地圖；城市裡的 YouBike 可以快速移動。</p></div>
       <div class="card-sec"><h4>手機</h4><p>右上角 📱 或按 <b>P</b>。訊息、邀約、人物關係、回憶、行程都在這裡。</p></div>
       <div class="card-sec"><h4>時間</h4><p>時間會一直走。做事情會花時間，NPC 不會等你。重要的約會會出現在左上角的提醒。答應了做不到，傳個訊息改期，總比放鳥好。</p></div>
       <div class="card-sec"><h4>沒有正確答案</h4><p>認真上班、天天摸魚、談戀愛、什麼都不做——每一種生活都有自己的故事。這個世界會記得你怎麼活。</p></div>`;

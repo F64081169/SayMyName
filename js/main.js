@@ -4,6 +4,7 @@
   const $ = (id) => document.getElementById(id);
   const Main = SW.Main = {};
   SW.timeScale = 0.85;
+  try { const ts = +localStorage.getItem('sw-speed'); if ([0.55, 0.85, 1.4].includes(ts)) SW.timeScale = ts; } catch (e) { /* storage blocked: keep the default */ }
   try { SW.fastText = localStorage.getItem('sw-fast') === '1'; } catch (e) { SW.fastText = false; }
 
   const HAIR = ['#1d1c24', '#4a2f22', '#7a3b22', '#c9a063', '#c94f86', '#3f5f8f', '#e8e3d8'];
@@ -44,7 +45,7 @@
         <button class="btn ${save ? 'alt' : 'primary'}" id="t-new">${save ? '開始新的人生（會覆蓋存檔）' : '開始新的人生'}</button>
         ${save ? '' : '<button class="btn alt" id="t-quick">用預設角色直接開始（Shannon・獨居）</button>'}
       </div>
-      <p class="t-note">支援電腦與手機瀏覽器。電腦用 WASD／方向鍵移動、E 互動、P 打開手機；手機拖曳畫面移動、點擊互動。遊戲會自動存在這個瀏覽器裡。<br>所有公司、人物與事件皆為虛構。</p>
+      <p class="t-note">支援電腦與手機瀏覽器。電腦：WASD 移動、滑鼠轉頭、E 互動、P 手機。手機：左半邊拖曳移動、右半邊拖曳轉頭、點人或東西互動。遊戲會自動存在這個瀏覽器裡。<br>所有公司、人物與事件皆為虛構。</p>
     </div>`;
     if (save) $('t-cont').onclick = () => Main.start(save);
     $('t-new').onclick = () => Main.create();
@@ -65,7 +66,7 @@
         <div><label class="lab">背景</label><p class="muted" style="margin:0 0 6px">25 歲，SSD 韌體工程師，進公司一年。你比較像……</p><div class="opt-cards" id="f-bg">${bgs.map(([k, b]) => `<button data-v="${k}" class="${k === opt.bg ? 'on' : ''}"><b>${b.name}</b><span>${b.desc}</span></button>`).join('')}</div></div>
         <div><label class="lab">住哪裡？</label><div class="opt-cards" id="f-house">
           <button data-v="solo" class="on"><b>獨居套房</b><span>私人空間多。安靜，有時候太安靜。</span></button>
-          <button data-v="shared"><b>和米拉合租</b><span>每天都有室友事件。冰箱會分區，會吵架，也會一起看劇。</span></button>
+          <button data-v="shared"><b>和米拉合租</b><span>常常有室友事件。冰箱會分區，會吵架，也會一起看劇。</span></button>
         </div></div>
         <button class="btn" id="f-go" style="font-size:17px;min-height:54px;text-align:center">星期一 08:45，起床</button>
         <button class="ghost" id="f-back">返回</button>
@@ -152,6 +153,9 @@
     where: () => Object.fromEntries(Object.keys(SW.S.n).map((id) => [id, `${SW.S.n[id].map} ${SW.S.n[id].act}`])),
   };
 
+  // web font loads after the page so an unreachable font host never blocks the first paint (system fonts until then)
+  function loadFont() { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap'; document.head.appendChild(l); }
+  if (document.readyState === 'complete') loadFont(); else window.addEventListener('load', loadFont);
   window.addEventListener('resize', () => { SW.R3.resize(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) SW.save(); });
   window.addEventListener('pagehide', () => SW.save());

@@ -204,7 +204,11 @@
   };
 
   // ---------- invites ----------
-  Talk.busyLine = (id, act) => ({ mira: `我在${act}，晚點再說好嗎？`, hsiu: `我那時候要${act}。很忙。`, pei: `啊，我那時候在${act}耶～`, anson: `抱歉，我那時候在${act}。`, lele: `我那時候在${act}啦～`, kai: '那個時間我有拍攝工作。', yuna: '那時候我在值班。' }[id] || `我那時候在${act}。`);
+  Talk.busyLine = (id, act) => {
+    if (id === 'pei' && /壽星/.test(act)) act = '跟米拉吃晚餐'; // she must not hear about her own surprise party
+    act = String(act).replace(/^在/, '');
+    return ({ mira: `我在${act}，晚點再說好嗎？`, hsiu: `我那時候要${act}。很忙。`, pei: `啊，我那時候在${act}耶～`, anson: `抱歉，我那時候在${act}。`, lele: `我那時候在${act}啦～`, kai: '那個時間我有拍攝工作。', yuna: '那時候我在值班。' }[id] || `我那時候在${act}。`);
+  };
   Talk.inviteYes = function (id, act, rom) {
     const Y = {
       mira: ['好啊。準時喔，我會看錶。', '……約會？好。（停頓）我會準時。你也是。'],

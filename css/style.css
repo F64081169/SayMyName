@@ -236,3 +236,13 @@ button:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; 
 
 /* mobile toast placement (must come after the base #toasts rule) */
 @media (max-width: 700px) { #toasts { top: calc(150px + var(--safe-t)); max-width: none; width: min(92vw, 420px); } }
+
+/* landscape phones: wider, shorter sheets so every option fits without scrolling */
+@media (max-height: 500px) {
+  .sheet-card { width: min(780px, 100%); max-height: 94vh; padding: 10px 12px; }
+  #sheet-title { font-size: 16px; padding-bottom: 6px; }
+  #sheet-items { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; }
+  .sitem { min-height: 44px; padding: 6px 10px; }
+  .sitem .ic { font-size: 18px; width: 22px; }
+  #sheet-close { min-height: 40px; margin-top: 6px; }
+}

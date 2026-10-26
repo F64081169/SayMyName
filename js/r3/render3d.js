@@ -592,7 +592,7 @@
   }
   const PED_SPOTS = [[10, 42], [40, 42], [70, 42], [100, 42], [115, 53], [80, 53], [50, 53], [20, 53], [22, 70], [36, 72], [91, 60], [92, 72], [30, 76], [70, 76], [100, 76], [20, 89], [60, 89], [95, 89], [56, 20], [65, 30], [20, 36], [80, 39]];
   R3.backdrop = function (dt) {
-    if (!renderer) return;
+    if (!renderer || R3.skip) return;
     const rec = R3.sceneFor('city'); cur = rec;
     R3._bd = (R3._bd || 0) + dt;
     const t = R3._bd, x = 4 + (t * 1.1) % 104;

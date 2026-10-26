@@ -328,12 +328,12 @@
     const st = S(), pei = here('pei');
     return [
       { icon: '☕', t: '點一杯拿鐵', sub: 'NT$80・+體力', v: 'order', run: async () => {
-        Sys.money(-80); Sys.energy(14); st.cafe.fund += 80;
+        if (!Sys.pay(80)) return; Sys.energy(14); st.cafe.fund += 80;
         if (pei) await SW.scene(async () => { await say('pei', U.pick(['老樣子？燕麥奶、少冰、多一點耐心。', '今天的豆子是衣索比亞，聞起來像草莓。', '給你～拉花是一隻貓，雖然看起來比較像馬鈴薯。'])); });
         else UI.toast('☕ 店員幫你做了一杯拿鐵。');
       } },
       Sys.knows('player', 'lease') && pei ? { icon: '🎟️', t: '預購咖啡券', sub: '用她能接受的方式支持咖啡廳', v: 'voucher', run: voucher } : null,
-      { icon: '🥐', t: '買個可頌', sub: 'NT$65・+體力', v: 'croissant', run: async () => { Sys.money(-65); Sys.energy(10); st.cafe.fund += 65; UI.toast('🥐 酥到掉滿桌。'); } },
+      { icon: '🥐', t: '買個可頌', sub: 'NT$65・+體力', v: 'croissant', run: async () => { if (!Sys.pay(65)) return; Sys.energy(10); st.cafe.fund += 65; UI.toast('🥐 酥到掉滿桌。'); } },
     ];
   };
   async function voucher() {
@@ -429,18 +429,18 @@
   OBJ.weights = () => [{ icon: '🏋️', t: '重訓', sub: '45 分鐘・時機小遊戲', v: 'lift', run: () => workout('lift') }];
   OBJ.yoga = () => [{ icon: '🧘', t: '伸展放鬆', sub: '30 分鐘・+心情 +一點體力', v: 'y', run: () => timed(30, '伸展', async () => { if (here('mira')) { await say('mira', '……你也來做瑜珈？不要跟別人說我在這裡。'); Sys.ch('mira', { comfort: 3 }, true); } else await narr('你的筋骨發出各種聲音。你決定原諒它們。'); }).then((ok) => { if (ok) { Sys.mood(6); Sys.energy(5); } }) }];
   OBJ.gymCounter = () => [
-    { icon: '🥤', t: '買高蛋白飲', sub: 'NT$90・+體力', v: 'shake', run: () => { Sys.money(-90); Sys.energy(15); UI.toast('🥤 巧克力口味，喝起來像融化的雪糕。'); } },
+    { icon: '🥤', t: '買高蛋白飲', sub: 'NT$90・+體力', v: 'shake', run: () => { if (!Sys.pay(90)) return; Sys.energy(15); UI.toast('🥤 巧克力口味，喝起來像融化的雪糕。'); } },
     here('coach') ? { icon: '🐻', t: '跟大熊教練聊天', v: 'coach', run: () => SW.Acts.minor('coach') } : null,
   ];
 
   // ===== BAR =====
   OBJ.barCounter = () => [
-    { icon: '🍸', t: '點一杯好日子特調', sub: 'NT$250・+心情', v: 'drink', run: async () => { Sys.money(-250); Sys.mood(10); Sys.energy(-4); if (here('tsai')) await SW.scene(async () => { await say('tsai', U.pick(['特調一杯。今天看起來需要雙倍的「好日子」。', '慢慢喝。這杯的名字叫「明天再說」。', '你的臉寫著「上班好累」，我幫你多加了一點檸檬。'])); }); else UI.toast('🍸 微酸、微甜、很好日子。'); } },
+    { icon: '🍸', t: '點一杯好日子特調', sub: 'NT$250・+心情', v: 'drink', run: async () => { if (!Sys.pay(250)) return; Sys.mood(10); Sys.energy(-4); if (here('tsai')) await SW.scene(async () => { await say('tsai', U.pick(['特調一杯。今天看起來需要雙倍的「好日子」。', '慢慢喝。這杯的名字叫「明天再說」。', '你的臉寫著「上班好累」，我幫你多加了一點檸檬。'])); }); else UI.toast('🍸 微酸、微甜、很好日子。'); } },
     here('tsai') ? { icon: '🧔', t: '跟老蔡聊天', sub: '他看過太多人的故事', v: 'tsai', run: () => SW.Acts.minor('tsai') } : null,
   ];
   OBJ.jukebox = () => [{ icon: '🎵', t: '點一首歌', sub: 'NT$20', v: 'song', run: async () => {
     const v = await UI.sheet('點什麼歌？', '', [{ icon: '🎤', t: '台語老歌', v: 'old' }, { icon: '🎸', t: '樂團搖滾', v: 'rock' }, { icon: '🕯️', t: '慢歌情歌', v: 'slow' }]);
-    if (!v) return; Sys.money(-20); Sys.mood(4);
+    if (!v || !Sys.pay(20)) return; Sys.mood(4);
     const ps = SW.W.npcsHere().filter((i) => SW.CH[i].core);
     await SW.scene(async () => {
       if (!ps.length) { await narr({ old: '老蔡跟著哼了起來。整間店突然像辦桌。', rock: '鼓聲一下，隔壁桌的上班族默默點頭。', slow: '燈好像暗了一點。' }[v]); return; }
@@ -492,7 +492,7 @@
   const OBJ = SW.OBJ, SUB = SW.OBJ_SUB;
   const fol = () => S().p.follower;
   const marketOpen = () => T.mod() >= 17 * 60 || T.mod() < 30;
-  const buy = (price) => { if (S().p.money < price) { UI.toast('錢不夠。'); return false; } Sys.money(-price); return true; };
+  const buy = (price) => Sys.pay(price);
   async function folLine(lines) { const f = fol(); if (f && lines[f]) { await say(f, lines[f]); Sys.ch(f, { comfort: 2 }, true); } }
 
   OBJ.breakfast = () => {
@@ -518,7 +518,7 @@
     } }];
   };
   OBJ.fountain = () => [{ icon: '🪙', t: '丟一枚硬幣許願', sub: 'NT$10', v: 'w', dis: SW.dailyHas('wish'), run: async () => {
-    SW.dailyOnce('wish'); Sys.money(-10);
+    if (!Sys.pay(10)) return; SW.dailyOnce('wish');
     await SW.scene(async () => {
       const c = await choose([{ t: '希望這週可以準時下班', v: 'work' }, { t: '希望轉角可以留下來', v: 'cafe' }, { t: '希望遇到喜歡的人', v: 'love' }, { t: '希望大家都好好的', v: 'all' }]);
       await narr('硬幣在水面上轉了一圈，沉下去了。');
